@@ -111,6 +111,7 @@ class FocusedCrawler:
             html_text = None
             title = ""
             extracted_links: List[str] = []
+            error_message = ""
             
             try:
                 # HTTP Request with timeout (Task 3)
@@ -160,11 +161,16 @@ class FocusedCrawler:
                 else:
                     # Non-200 or non-HTML response
                     self.failed_requests += 1
+                    if status_code != 200:
+                        error_message = f"HTTP {status_code}"
+                    else:
+                        error_message = f"Unsupported Content-Type: {content_type or '(missing)'}"
                     
             except requests.RequestException as e:
                 elapsed_time = time.time() - start_time
                 status_code = "ERR"
                 self.failed_requests += 1
+                error_message = f"{type(e).__name__}: {e}"
 
             # Log current page crawl details as specified by the assignment
             print(f"[Crawl #{crawl_counter:03d}]")
@@ -172,7 +178,14 @@ class FocusedCrawler:
             print(f"URL   : {current_url}")
             print(f"Status: {status_code}")
             print(f"Title : {title if title else '(None)'}")
-            print(f"Links : {len(extracted_links)} (articles only: {self.articles_only})")
+            link_mode = (
+                "articles only"
+                if self.articles_only
+                else "content pages; media/utility excluded"
+            )
+            print(f"Links : {len(extracted_links)} ({link_mode})")
+            if error_message:
+                print(f"Error : {error_message}")
             print(f"Time  : {elapsed_time:.2f} sec\n")
             
             # Respect crawl delay between requests (Task 3)

@@ -1,7 +1,8 @@
 """
 Configuration settings for the Focused Web Crawler.
-Topic: News & Information (VnExpress International)
+Topic: News & Information (BBC News)
 Course: SEG301 - Crawls and Feeds
+Rule set: see BBC_crawl_rule.md
 """
 import os
 
@@ -10,14 +11,17 @@ import os
 # ==========================================
 TOPIC = "News & Information"
 
-# Seed URLs to initiate the crawling process
+# Seed URLs to initiate the crawling process (BBC topic page)
 SEED_URLS = [
-    "https://e.vnexpress.net/"
+    # www.bbc.com is DNS-blocked on some networks; the UK host serves the same
+    # Business section and keeps discovered links on the reachable BBC host.
+    "https://www.bbc.co.uk/business"
 ]
 
-# Allowed domains constraint to keep the crawl focused on VnExpress International
+# Allowed domains constraint to keep the crawl focused on BBC
 ALLOWED_DOMAINS = [
-    "e.vnexpress.net"
+    "bbc.com",
+    "bbc.co.uk"
 ]
 
 # Crawling constraints
@@ -26,9 +30,9 @@ MAX_PAGES = 100         # Maximum number of unique pages to download
 REQUEST_TIMEOUT = 10    # HTTP request timeout in seconds
 CRAWL_DELAY = 1.0       # Polite crawl delay between requests in seconds
 
-# Chỉ cào bài báo thực sự (bắt buộc đuôi .html và có mã bài viết)
-# Loại bỏ các trang danh mục như /news/life/wellness, /news/news...
-ARTICLES_ONLY = True
+# False keeps useful BBC topic/index pages as well as articles. Media and
+# utility routes are still rejected by parser.is_excluded_bbc_url().
+ARTICLES_ONLY = False
 
 # SQLite Database storage path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

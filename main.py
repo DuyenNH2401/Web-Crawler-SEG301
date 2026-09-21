@@ -53,7 +53,8 @@ def print_summary(
     print("\n========== CRAWLING SUMMARY ==========")
     print(f"Topic                  : {topic}")
     print(f"Seed URLs              : {seeds_count}")
-    print(f"Pages Crawled          : {crawler.pages_crawled}")
+    print(f"Pages Crawled (run)    : {crawler.pages_crawled}")
+    print(f"Pages Stored (database): {stats['pages_crawled']}")
     print(f"Unique URLs Discovered : {crawler.frontier.total_discovered}")
     print(
         f"Skipped URLs           : {crawler.frontier.total_skipped + crawler.skipped_robots}"
@@ -61,7 +62,9 @@ def print_summary(
     print(f"Failed Requests        : {crawler.failed_requests}")
     print(f"Maximum Depth          : {crawler.max_depth}\n")
 
-    # Depth breakdown
+    print("\nStored database breakdown:")
+
+    # Depth breakdown (the database can include rows from earlier runs)
     for depth in range(crawler.max_depth + 1):
         count = stats["depth_counts"].get(depth, 0)
         print(f"Depth {depth:<16} : {count} pages")

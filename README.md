@@ -8,14 +8,14 @@ A focused, polite web crawler built with Python, Requests, BeautifulSoup, and SQ
 
 - **Topic:** News & Information
 - **Selected Domain:**
-  - `e.vnexpress.net` (VnExpress International - The most-read English news publication in Vietnam)
+  - `bbc.com` / `bbc.co.uk` (BBC News)
 
 ---
 
 ## 2. Seed URLs
 
 The crawling process initiates from the seed URL:
-1. `https://e.vnexpress.net/`
+1. `https://www.bbc.co.uk/business` (redirects to the BBC Business section)
 
 ---
 
@@ -26,8 +26,8 @@ The configuration parameters are centralized in [`config.py`](config.py):
 | Parameter | Value | Description |
 | :--- | :--- | :--- |
 | **Topic** | `News & Information` | Selected topic domain |
-| **Allowed Domains (`ALLOWED_DOMAINS`)** | `["e.vnexpress.net"]` | Domain constraint to keep crawler focused |
-| **Articles Only (`ARTICLES_ONLY`)** | `True` | Bắt buộc cào bài báo thực sự (đuôi `.html` và có mã bài viết) |
+| **Allowed Domains (`ALLOWED_DOMAINS`)** | `["bbc.com", "bbc.co.uk"]` | Domain constraint to keep crawler focused |
+| **Articles Only (`ARTICLES_ONLY`)** | `False` | Follow articles and useful topic/index pages; reject media and utility routes |
 | **Maximum Pages (`MAX_PAGES`)** | `100` | Stopping threshold for downloaded web pages |
 | **Maximum Depth (`MAX_DEPTH`)** | `3` | Maximum hop distance from seed URLs (Seed URL is depth 0) |
 | **Request Timeout (`REQUEST_TIMEOUT`)** | `10` seconds | Socket read/connect timeout per HTTP request |
@@ -56,13 +56,13 @@ The URL Frontier is implemented in [`url_frontier.py`](url_frontier.py) using Py
 
 To ensure high-quality crawling and prevent downloading irrelevant category listings, links extracted via `<a href>` undergo multi-stage filtering in [`parser.py`](parser.py):
 
-1. **Article Verification (`is_article_url`):**
-   - **Bắt buộc đuôi `.html`:** Chỉ thu thập các đường dẫn bài viết thực sự (ví dụ `...-south-korea-s-second-largest-city-welcomes-3-million-tourists-in-seven-months-5122661.html`).
-   - **Loại bỏ trang danh mục:** Hoàn toàn bỏ qua các trang danh mục / chuyên mục không có đuôi `.html` (như `/news/life/wellness`, `/news/news`, `/news/business/economy`, `/interactive/...`).
-   - **Loại bỏ trang lỗi:** Bỏ qua `/error.html`.
+1. **Page Eligibility:**
+   - Accepts useful BBC article, topic, section, and live-text pages linked from the page's `<main>` content.
+   - Uses current and legacy article URL formats to select the article-body extraction strategy.
+   - Rejects video, image-gallery, audio, programme, search, feed, and other media/utility routes.
 2. **Relative URL Normalization:** Uses `urllib.parse.urljoin(current_url, href)` to convert relative links into fully qualified absolute URLs.
 3. **Anchor & Fragment Removal:** Fragments (e.g., `#box_comment`, `#header`) are stripped so duplicate anchors point to the same canonical URL.
-4. **Domain Whitelist (`ALLOWED_DOMAINS`):** Only URLs belonging to `e.vnexpress.net` are accepted. Outbound links to social networks or third parties are discarded.
+4. **Domain Whitelist (`ALLOWED_DOMAINS`):** Only BBC hosts are accepted. Outbound links to social networks or third parties are discarded.
 5. **Scheme Whitelist:** Only standard `http` and `https` protocols are accepted (`mailto:`, `javascript:`, and `tel:` are rejected).
 6. **Static Asset Filtering:** Non-HTML files are ignored (`.jpg`, `.jpeg`, `.png`, `.gif`, `.svg`, `.css`, `.js`, `.pdf`, `.zip`, `.mp4`, etc.).
 7. **Robots.txt Compliance:** Before dispatching an HTTP GET request, the crawler queries the cached `RobotFileParser` for that domain to verify access permissions.
@@ -90,9 +90,9 @@ CREATE TABLE pages (
 ```
 
 - `url`: Canonical URL of the page (marked `UNIQUE` to ensure idempotency).
-- `domain`: Host domain name (`e.vnexpress.net`).
+- `domain`: BBC host domain name (for example `www.bbc.com`).
 - `title`: Extracted `<title>` or article headline (`h1`).
-- `content`: Cleaned, visible body text (scripts/styles stripped out, lead summary + article paragraphs).
+- `content`: Clean editorial text only: article body paragraphs, or valid text-article headlines on a topic page. Media, captions, ads, bylines, and navigation are excluded.
 - `depth`: Depth level at which the page was discovered (0 for seed).
 - `status_code`: HTTP response status code (e.g., 200).
 - `crawled_at`: ISO 8601 formatted crawl timestamp.
