@@ -1,169 +1,134 @@
-# Focused Web Crawler - SEG301 Lab Project
+# Focused Web Crawler - SEG301 Assignment
 
-A focused, polite web crawler built with Python, Requests, BeautifulSoup, and SQLite for the **SEG301 - Information Retrieval & Search Engines** course (Chapter 3: *Crawls and Feeds*).
+Crawler tap trung (focused web crawler) viet bang Python, dung `requests` +
+`BeautifulSoup` de crawl trang, va SQLite de luu du lieu. Crawl theo thu tu
+BFS (Breadth-First Search) qua URL Frontier.
 
----
+> **QUAN TRONG - doc truoc khi nop bai:** de bai yeu cau chon **toi thieu 2
+> domain** trong cung 1 topic ("You should select at least 2 domains from
+> your chosen topic"). File `config.py` trong repo nay hien **chi cau hinh
+> 1 domain la BBC (bbc.com)** de ban test truoc. Truoc khi nop, hay them
+> domain thu 2 (vi du CNN hoac The Guardian - cung la domain chinh thuc
+> trong bang de bai cho topic News & Information) vao ca `SEED_URLS` va
+> `ALLOWED_DOMAINS` trong `config.py`.
 
 ## 1. Selected Topic and Domains
 
 - **Topic:** News & Information
-- **Selected Domain:**
-  - `e.vnexpress.net` (VnExpress International - The most-read English news publication in Vietnam)
+- **Domain (dang cau hinh):** BBC — `bbc.com`
 
----
+**Vi sao chon BBC ma khong phai NPR:** ban dau du dinh crawl NPR, nhung khi
+test thuc te NPR chan ket noi ngay o tang TLS handshake
+(`ConnectionResetError` xay ra truoc khi kip nhan response) - day la kieu
+chan dua tren "TLS fingerprint" cua client, khong the sua duoc chi bang
+`requests` + header thong thuong (nam ngoai kha nang cua cac cong nghe de
+bai cho phep). BBC nam trong danh sach domain **chinh thuc** cua de bai va
+da co nhieu tien le crawl thanh cong bang dung `requests` + `BeautifulSoup`.
+
+Crawler nay dung `urllib.robotparser` de tu dong kiem tra `robots.txt` cua
+domain truoc moi request (khong hardcode luat), nen se tu dong bo qua bat
+ky duong dan nao bi cam. Truoc khi crawl, nen tu kiem tra nhanh bang trinh
+duyet tai `https://www.bbc.com/robots.txt` de biet truoc cac gioi han.
 
 ## 2. Seed URLs
 
-The crawling process initiates from the seed URL:
-1. `https://e.vnexpress.net/`
-
----
+```
+https://www.bbc.com/
+https://www.bbc.com/news
+```
 
 ## 3. Crawling Configuration
 
-The configuration parameters are centralized in [`config.py`](config.py):
+Cau hinh tap trung trong [`config.py`](config.py):
 
-| Parameter | Value | Description |
-| :--- | :--- | :--- |
-| **Topic** | `News & Information` | Selected topic domain |
-| **Allowed Domains (`ALLOWED_DOMAINS`)** | `["e.vnexpress.net"]` | Domain constraint to keep crawler focused |
-| **Articles Only (`ARTICLES_ONLY`)** | `True` | Bắt buộc cào bài báo thực sự (đuôi `.html` và có mã bài viết) |
-| **Maximum Pages (`MAX_PAGES`)** | `100` | Stopping threshold for downloaded web pages |
-| **Maximum Depth (`MAX_DEPTH`)** | `3` | Maximum hop distance from seed URLs (Seed URL is depth 0) |
-| **Request Timeout (`REQUEST_TIMEOUT`)** | `10` seconds | Socket read/connect timeout per HTTP request |
-| **Crawl Delay (`CRAWL_DELAY`)** | `1.0` second | Polite delay interval between requests |
-| **Storage (`DB_PATH`)** | `data/crawler.db` | SQLite database file |
+| Parameter | Value |
+| :--- | :--- |
+| Maximum Depth | 3 |
+| Maximum Pages | 100 |
+| Request Timeout | 20 giay |
+| Crawl Delay | 1.5 giay |
 
----
+Ly do chon Crawl Delay 1.5s: de dam bao lich su, tranh gui request qua
+nhanh gay tai cho server va giam nguy co bi chan boi cac lop chong bot -
+nen kiem tra lai `Crawl-delay` thuc te trong `robots.txt` cua domain minh
+chon va dieu chinh neu can. Request Timeout duoc dat 20s (thay vi 10s mac
+dinh) vi route mang quoc te co the co do tre cao hon binh thuong.
 
 ## 4. Crawling Strategy
 
-### 4.1 Breadth-First Search (BFS)
-This crawler adopts a **Breadth-First Search (BFS)** crawling policy instead of Depth-First Search (DFS) for key reasons:
-1. **Article Prioritization:** Starting from the seed homepage, the crawler identifies and enqueues high-priority news articles at depth 1.
-2. **Avoiding Spider Traps:** Prevents the crawler from getting stuck in deep pagination loops or recursive archive links.
-3. **Queue Discipline:** URLs discovered earlier are prioritized before diving into deeper article sub-trees.
+URL Frontier (`url_frontier.py`) dung `collections.deque` de dam bao thu
+tu BFS: cac trang o depth thap hon luon duoc crawl truoc cac trang o depth
+cao hon. Frontier dong thoi giu 1 `set` cac URL dang cho (`_queued_set`) va
+1 `set` cac URL da crawl (`visited`) de khong bao gio them 2 lan cung 1 URL
+vao hang doi, va khong crawl lai URL da xu ly (Task 7 - tranh duplicate).
 
-### 4.2 URL Frontier Architecture
-The URL Frontier is implemented in [`url_frontier.py`](url_frontier.py) using Python's double-ended queue (`collections.deque`):
-- **FIFO Queue:** Elements are popped from the left (`popleft()`) and appended to the right (`append()`), guaranteeing BFS traversal.
-- **Tuples:** Stores `(url, depth)` pairs to maintain strict depth bookkeeping.
-- **Seen & Visited Sets:** $O(1)$ lookups to immediately skip previously seen or already crawled URLs.
-
----
+Vong lap chinh dung khi **mot trong hai dieu kien** xay ra truoc: so trang
+da crawl thanh cong dat `MAX_PAGES`, hoac Frontier rong (khong con URL nao
+de crawl).
 
 ## 5. URL Filtering Rules
 
-To ensure high-quality crawling and prevent downloading irrelevant category listings, links extracted via `<a href>` undergo multi-stage filtering in [`parser.py`](parser.py):
+Trong `parser.py`, moi link trich xuat tu the `<a href>` phai vuot qua het
+cac buoc loc sau moi duoc them vao Frontier:
 
-1. **Article Verification (`is_article_url`):**
-   - **Bắt buộc đuôi `.html`:** Chỉ thu thập các đường dẫn bài viết thực sự (ví dụ `...-south-korea-s-second-largest-city-welcomes-3-million-tourists-in-seven-months-5122661.html`).
-   - **Loại bỏ trang danh mục:** Hoàn toàn bỏ qua các trang danh mục / chuyên mục không có đuôi `.html` (như `/news/life/wellness`, `/news/news`, `/news/business/economy`, `/interactive/...`).
-   - **Loại bỏ trang lỗi:** Bỏ qua `/error.html`.
-2. **Relative URL Normalization:** Uses `urllib.parse.urljoin(current_url, href)` to convert relative links into fully qualified absolute URLs.
-3. **Anchor & Fragment Removal:** Fragments (e.g., `#box_comment`, `#header`) are stripped so duplicate anchors point to the same canonical URL.
-4. **Domain Whitelist (`ALLOWED_DOMAINS`):** Only URLs belonging to `e.vnexpress.net` are accepted. Outbound links to social networks or third parties are discarded.
-5. **Scheme Whitelist:** Only standard `http` and `https` protocols are accepted (`mailto:`, `javascript:`, and `tel:` are rejected).
-6. **Static Asset Filtering:** Non-HTML files are ignored (`.jpg`, `.jpeg`, `.png`, `.gif`, `.svg`, `.css`, `.js`, `.pdf`, `.zip`, `.mp4`, etc.).
-7. **Robots.txt Compliance:** Before dispatching an HTTP GET request, the crawler queries the cached `RobotFileParser` for that domain to verify access permissions.
-
----
+1. Bo qua scheme khong phai web: `mailto:`, `javascript:`, `tel:`, `ftp:`
+2. Chuyen URL tuong doi thanh URL tuyet doi bang `urljoin(current_url, href)`
+3. Chuan hoa URL: bo fragment (`#...`), bo dau `/` thua o cuoi path
+4. Bo qua file khong phai HTML dua tren duoi file: `.jpg, .png, .css, .js,
+   .pdf, .zip, .mp3, .mp4, ...`
+5. Chi giu URL cung domain duoc phep (`ALLOWED_DOMAINS`) - so sanh domain
+   sau khi da bo tien to `www.` de coi `www.bbc.com` va `bbc.com` la 1
+6. Kiem tra `robots.txt` (`can_fetch`) truoc khi thuc su gui request
+7. Chi them vao Frontier neu `depth + 1 <= MAX_DEPTH`
 
 ## 6. Database Design
 
-Data is persistently stored in SQLite (`data/crawler.db`) adhering to the schema specified in Task 8:
+SQLite tai `data/crawler.db`, 2 bang:
 
-### Table 1: `pages`
-Stores the metadata and text content extracted from each successfully crawled HTML page.
+- **`pages`**: luu thong tin tung trang da crawl thanh cong hoac loi
+  (url, domain, title, content, depth, status_code, crawled_at). Cot
+  `url` co rang buoc `UNIQUE` de chinh tang co so du lieu cung chong duoc
+  du lieu trung.
+- **`links`**: luu quan he "trang nao link toi trang nao"
+  (source_url, target_url), phuc vu phan tich cau truc lien ket sau nay.
 
-```sql
-CREATE TABLE pages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT UNIQUE,
-    domain TEXT,
-    title TEXT,
-    content TEXT,
-    depth INTEGER,
-    status_code INTEGER,
-    crawled_at TEXT
-);
+## 7. Crawling Results
+
+*(Dien ket qua thuc te sau khi ban chay `python main.py` tren may co ket
+noi internet - chuong trinh se tu in phan CRAWLING SUMMARY o cuoi.)*
+
 ```
-
-- `url`: Canonical URL of the page (marked `UNIQUE` to ensure idempotency).
-- `domain`: Host domain name (`e.vnexpress.net`).
-- `title`: Extracted `<title>` or article headline (`h1`).
-- `content`: Cleaned, visible body text (scripts/styles stripped out, lead summary + article paragraphs).
-- `depth`: Depth level at which the page was discovered (0 for seed).
-- `status_code`: HTTP response status code (e.g., 200).
-- `crawled_at`: ISO 8601 formatted crawl timestamp.
-
-### Table 2: `links`
-Represents the directed web graph by storing the relationships between crawled pages and their discovered outbound hyperlinks.
-
-```sql
-CREATE TABLE links (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source_url TEXT,
-    target_url TEXT
-);
-```
-
----
-
-## 7. How to Install and Run
-
-### Step 1: Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### Step 2: Run the Crawler
-To run with default settings (`MAX_PAGES = 100`, `MAX_DEPTH = 3`):
-```bash
-python main.py
-```
-
-Optional CLI parameters:
-```bash
-# Quick test run with 10 pages and depth 2
-python main.py --max-pages 10 --max-depth 2 --delay 0.5
-
-# Reset existing database and start fresh
-python main.py --reset-db
-```
-
-### Step 3: Inspect Crawled Articles
-```bash
-# View overview table
-python view_db.py
-
-# Read a specific article by ID
-python view_db.py --read 2
-```
-
----
-
-## 8. Crawling Results
-
-*(The statistics below are dynamically computed from `crawler.db` upon completion)*
-
-```text
-========== CRAWLING SUMMARY ==========
-Topic                  : News & Information
-Seed URLs              : 1
-Pages Crawled          : 100
+Pages Crawled          : ...
 Unique URLs Discovered : ...
 Skipped URLs           : ...
 Failed Requests        : ...
-Maximum Depth          : 3
+```
 
-Depth 0                : 1 pages
-Depth 1                : ... pages
-Depth 2                : ... pages
-Depth 3                : ... pages
+---
 
-HTTP 200               : ...
-HTTP 404               : ...
-HTTP 403               : ...
-=======================================
+## Cach chay
+
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+Chay file **`main.py`** — day la entry point duy nhat, no se tu dong goi
+`crawler.py`, `url_frontier.py`, `parser.py`, `database.py` theo dung thu
+tu trong pipeline (Task 9). Ket qua duoc luu tai `data/crawler.db`.
+
+## Project Structure
+
+```
+web-crawler-bbc/
+├── main.py          # Entry point - chay file nay
+├── crawler.py        # HTTP request, robots.txt, vong lap crawl chinh
+├── url_frontier.py   # URL Frontier (BFS queue + visited set)
+├── parser.py          # Trich xuat thong tin trang + trich/loc hyperlink
+├── database.py        # Luu du lieu vao SQLite (bang pages, links)
+├── config.py          # Cau hinh crawl (seed, domain, depth, delay...)
+├── data/
+│   └── crawler.db     # Duoc tao tu dong khi chay
+├── requirements.txt
+└── README.md
 ```
