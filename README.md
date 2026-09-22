@@ -1,21 +1,22 @@
-# Focused Web Crawler - SEG301 Lab Project
+# Multi-source Focused Web Crawler - SEG301 Lab Project
 
 A focused, polite web crawler built with Python, Requests, BeautifulSoup, and SQLite for the **SEG301 - Information Retrieval & Search Engines** course (Chapter 3: *Crawls and Feeds*).
 
 ---
 
-## 1. Selected Topic and Domains
+## 1. Selected Topic and Sources
 
 - **Topic:** News & Information
-- **Selected Domain:**
-  - `e.vnexpress.net` (VnExpress International - The most-read English news publication in Vietnam)
+- **Sources:** VnExpress, CNN, BBC, The Guardian, and Global Times
+- Each source keeps its original URL rules and HTML parser in [`sources/`](sources/).
+- All parsers return one common `Article` format before digest generation.
 
 ---
 
 ## 2. Seed URLs
 
-The crawling process initiates from the seed URL:
-1. `https://e.vnexpress.net/`
+Each source adapter owns its seed URLs. The five crawlers run independently so
+one source's URL rules cannot affect another source's frontier.
 
 ---
 
@@ -26,13 +27,11 @@ The configuration parameters are centralized in [`config.py`](config.py):
 | Parameter | Value | Description |
 | :--- | :--- | :--- |
 | **Topic** | `News & Information` | Selected topic domain |
-| **Allowed Domains (`ALLOWED_DOMAINS`)** | `["e.vnexpress.net"]` | Domain constraint to keep crawler focused |
-| **Articles Only (`ARTICLES_ONLY`)** | `True` | Bắt buộc cào bài báo thực sự (đuôi `.html` và có mã bài viết) |
-| **Maximum Pages (`MAX_PAGES`)** | `100` | Stopping threshold for downloaded web pages |
-| **Maximum Depth (`MAX_DEPTH`)** | `3` | Maximum hop distance from seed URLs (Seed URL is depth 0) |
-| **Request Timeout (`REQUEST_TIMEOUT`)** | `10` seconds | Socket read/connect timeout per HTTP request |
-| **Crawl Delay (`CRAWL_DELAY`)** | `1.0` second | Polite delay interval between requests |
-| **Storage (`DB_PATH`)** | `data/crawler.db` | SQLite database file |
+| **Sources** | `5` | One adapter per newspaper |
+| **Maximum Pages (`--max-pages`)** | `100/source` | Stopping threshold per source |
+| **Articles (`--articles-per-source`)** | `1/source` | Number of articles included in the digest |
+| **Maximum Depth (`--max-depth`)** | Source-specific | Preserves each original branch rule |
+| **Storage** | `data/crawler.db` + `data/digest.md` | Raw pages plus one combined output |
 
 ---
 
@@ -54,24 +53,23 @@ The URL Frontier is implemented in [`url_frontier.py`](url_frontier.py) using Py
 
 ## 5. URL Filtering Rules
 
-To ensure high-quality crawling and prevent downloading irrelevant category listings, links extracted via `<a href>` undergo multi-stage filtering in [`parser.py`](parser.py):
+To ensure high-quality crawling and prevent downloading irrelevant pages, each
+source adapter applies the original branch-specific rules. The shared engine
+does not decide whether a URL is an article; it delegates that decision to the
+active adapter.
 
-1. **Article Verification (`is_article_url`):**
-   - **Bắt buộc đuôi `.html`:** Chỉ thu thập các đường dẫn bài viết thực sự (ví dụ `...-south-korea-s-second-largest-city-welcomes-3-million-tourists-in-seven-months-5122661.html`).
-   - **Loại bỏ trang danh mục:** Hoàn toàn bỏ qua các trang danh mục / chuyên mục không có đuôi `.html` (như `/news/life/wellness`, `/news/news`, `/news/business/economy`, `/interactive/...`).
-   - **Loại bỏ trang lỗi:** Bỏ qua `/error.html`.
-2. **Relative URL Normalization:** Uses `urllib.parse.urljoin(current_url, href)` to convert relative links into fully qualified absolute URLs.
-3. **Anchor & Fragment Removal:** Fragments (e.g., `#box_comment`, `#header`) are stripped so duplicate anchors point to the same canonical URL.
-4. **Domain Whitelist (`ALLOWED_DOMAINS`):** Only URLs belonging to `e.vnexpress.net` are accepted. Outbound links to social networks or third parties are discarded.
-5. **Scheme Whitelist:** Only standard `http` and `https` protocols are accepted (`mailto:`, `javascript:`, and `tel:` are rejected).
-6. **Static Asset Filtering:** Non-HTML files are ignored (`.jpg`, `.jpeg`, `.png`, `.gif`, `.svg`, `.css`, `.js`, `.pdf`, `.zip`, `.mp4`, etc.).
-7. **Robots.txt Compliance:** Before dispatching an HTTP GET request, the crawler queries the cached `RobotFileParser` for that domain to verify access permissions.
+1. **Source-specific article verification:** Each adapter retains its original URL pattern, including VnExpress `.html` IDs, CNN date paths, BBC article IDs, and the Guardian/Global Times rules.
+2. **Relative URL normalization:** Each adapter converts relative links into absolute URLs using its original normalization logic.
+3. **Domain and scheme filtering:** Each adapter applies its original allowed-domain, blocked-path, blocked-subdomain, and static-asset rules.
+4. **Robots.txt compliance:** Before an HTTP GET, the shared engine checks the cached `RobotFileParser` for that source.
 
 ---
 
 ## 6. Database Design
 
-Data is persistently stored in SQLite (`data/crawler.db`) adhering to the schema specified in Task 8:
+Data is persistently stored in SQLite (`data/crawler.db`) using the common page
+and link schema. After crawling, [`digest.py`](digest.py) writes one combined
+Markdown document to `data/digest.md`.
 
 ### Table 1: `pages`
 Stores the metadata and text content extracted from each successfully crawled HTML page.
@@ -118,52 +116,43 @@ pip install -r requirements.txt
 ```
 
 ### Step 2: Run the Crawler
-To run with default settings (`MAX_PAGES = 100`, `MAX_DEPTH = 3`):
+To run with the default source-specific settings:
 ```bash
-python main.py
+python3 main.py
 ```
 
 Optional CLI parameters:
 ```bash
-# Quick test run with 10 pages and depth 2
-python main.py --max-pages 10 --max-depth 2 --delay 0.5
+# Quick run with 10 pages per source and one article per source
+python3 main.py --max-pages 10 --articles-per-source 1 --delay 0.5
 
 # Reset existing database and start fresh
-python main.py --reset-db
+python3 main.py --reset-db
 ```
 
 ### Step 3: Inspect Crawled Articles
 ```bash
 # View overview table
-python view_db.py
+python3 view_db.py
 
 # Read a specific article by ID
-python view_db.py --read 2
+python3 view_db.py --read 2
+
+# Read the combined output
+cat data/digest.md
 ```
 
 ---
 
 ## 8. Crawling Results
 
-*(The statistics below are dynamically computed from `crawler.db` upon completion)*
+*(The crawl statistics are printed per source; the final five-article output is saved to `data/digest.md`.)*
 
 ```text
 ========== CRAWLING SUMMARY ==========
 Topic                  : News & Information
-Seed URLs              : 1
-Pages Crawled          : 100
-Unique URLs Discovered : ...
-Skipped URLs           : ...
-Failed Requests        : ...
-Maximum Depth          : 3
-
-Depth 0                : 1 pages
-Depth 1                : ... pages
-Depth 2                : ... pages
-Depth 3                : ... pages
-
-HTTP 200               : ...
-HTTP 404               : ...
-HTTP 403               : ...
+Sources                : 5
+Articles in digest     : 5 by default
+Digest                 : data/digest.md
 =======================================
 ```

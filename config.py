@@ -34,6 +34,7 @@ ARTICLES_ONLY = True
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "crawler.db")
+DIGEST_PATH = os.path.join(DATA_DIR, "digest.md")
 
 # HTTP Request Headers
 DEFAULT_HEADERS = {
