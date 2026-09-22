@@ -142,8 +142,8 @@ class CrawlerEngine:
                                 frontier.add_url(link, current_depth + 1)
                     else:
                         failed_requests += 1
-                except requests.RequestException:
-                    status_code = "ERR"
+                except requests.RequestException as error:
+                    status_code = f"ERR ({type(error).__name__})"
                     failed_requests += 1
 
                 elapsed = time.time() - started

@@ -15,8 +15,10 @@ A focused, polite web crawler built with Python, Requests, BeautifulSoup, and SQ
 
 ## 2. Seed URLs
 
-Each source adapter owns its seed URLs. The five crawlers run independently so
-one source's URL rules cannot affect another source's frontier.
+Runtime settings for all five sources, including seed URLs, domains, headers,
+limits, and delays, are in [`config.py`](config.py). The five crawlers still
+run independently so one source's URL rules cannot affect another source's
+frontier.
 
 ---
 
@@ -28,10 +30,11 @@ The configuration parameters are centralized in [`config.py`](config.py):
 | :--- | :--- | :--- |
 | **Topic** | `News & Information` | Selected topic domain |
 | **Sources** | `5` | One adapter per newspaper |
-| **Maximum Pages (`--max-pages`)** | `100/source` | Stopping threshold per source |
+| **Maximum Pages (`--max-pages`)** | Source config (`100/source`) | Optional global override |
 | **Articles (`--articles-per-source`)** | `1/source` | Number of articles included in the digest |
 | **Maximum Depth (`--max-depth`)** | Source-specific | Preserves each original branch rule |
-| **Storage** | `data/crawler.db` + `data/digest.md` | Raw pages plus one combined output |
+| **Delay (`--delay`)** | Source-specific | Optional global override |
+| **Storage** | `data/crawler.db` | Pages, links, and combined digests |
 
 ---
 
@@ -67,9 +70,9 @@ active adapter.
 
 ## 6. Database Design
 
-Data is persistently stored in SQLite (`data/crawler.db`) using the common page
-and link schema. After crawling, [`digest.py`](digest.py) writes one combined
-Markdown document to `data/digest.md`.
+Data is persistently stored in SQLite (`data/crawler.db`) using the common page,
+link, and digest tables. After crawling, [`digest.py`](digest.py) combines the
+articles and the result is stored in the `digests` table.
 
 ### Table 1: `pages`
 Stores the metadata and text content extracted from each successfully crawled HTML page.
@@ -106,6 +109,19 @@ CREATE TABLE links (
 );
 ```
 
+### Table 3: `digests`
+Stores one combined digest for each crawl run.
+
+```sql
+CREATE TABLE digests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic TEXT,
+    content TEXT,
+    article_count INTEGER,
+    created_at TEXT
+);
+```
+
 ---
 
 ## 7. How to Install and Run
@@ -138,21 +154,21 @@ python3 view_db.py
 # Read a specific article by ID
 python3 view_db.py --read 2
 
-# Read the combined output
-cat data/digest.md
+# Read the latest combined digest
+sqlite3 data/crawler.db "SELECT content FROM digests ORDER BY id DESC LIMIT 1;"
 ```
 
 ---
 
 ## 8. Crawling Results
 
-*(The crawl statistics are printed per source; the final five-article output is saved to `data/digest.md`.)*
+*(The crawl statistics are printed per source; the combined output is stored in `data/crawler.db`.)*
 
 ```text
 ========== CRAWLING SUMMARY ==========
 Topic                  : News & Information
 Sources                : 5
 Articles in digest     : 5 by default
-Digest                 : data/digest.md
+Digest                 : `digests` table in `data/crawler.db`
 =======================================
 ```

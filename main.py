@@ -3,9 +3,10 @@
 import argparse
 import os
 
-from config import DB_PATH, DIGEST_PATH, MAX_PAGES, TOPIC
+import database
+from config import DB_PATH, TOPIC
 from crawler import CrawlerEngine
-from digest import build_digest, save_digest
+from digest import build_digest
 from sources import ALL_SOURCES
 
 
@@ -14,8 +15,8 @@ def main() -> None:
     parser.add_argument(
         "--max-pages",
         type=int,
-        default=MAX_PAGES,
-        help="Maximum pages to inspect per source",
+        default=None,
+        help="Override the configured page limit for every source",
     )
     parser.add_argument(
         "--articles-per-source",
@@ -32,8 +33,8 @@ def main() -> None:
     parser.add_argument(
         "--delay",
         type=float,
-        default=0.5,
-        help="Override the source-specific crawl delay",
+        default=None,
+        help="Override the configured crawl delay for every source",
     )
     parser.add_argument(
         "--timeout",
@@ -67,9 +68,8 @@ def main() -> None:
         )
 
     digest = build_digest(articles, topic=TOPIC)
-    save_digest(digest, DIGEST_PATH)
-    print(f"\nĐã tạo digest: {DIGEST_PATH}")
-    print(digest.content)
+    database.insert_digest(DB_PATH, digest)
+    print(f"\nĐã lưu digest vào database: {DB_PATH} ({len(articles)} bài)")
 
 
 if __name__ == "__main__":

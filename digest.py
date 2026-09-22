@@ -1,7 +1,6 @@
 """Build one deterministic digest from normalized articles."""
 
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Iterable
 
 from models import Article, Digest
@@ -31,9 +30,3 @@ def build_digest(articles: Iterable[Article], topic: str = "News & Information")
         content="\n".join(sections).strip() + "\n",
         created_at=datetime.now(timezone.utc).isoformat(),
     )
-
-
-def save_digest(digest: Digest, path: str) -> None:
-    output = Path(path)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(digest.content, encoding="utf-8")
