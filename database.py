@@ -6,6 +6,8 @@ import os
 import sqlite3
 from typing import Dict, List, Any, Optional
 
+from models import Digest
+
 def get_connection(db_path: str) -> sqlite3.Connection:
     """Create a connection to the SQLite database and ensure directory exists."""
     os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
@@ -14,7 +16,7 @@ def get_connection(db_path: str) -> sqlite3.Connection:
     return conn
 
 def init_db(db_path: str) -> None:
-    """Initialize SQLite database with pages and links tables as required by Task 8."""
+    """Initialize SQLite database tables."""
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
         
@@ -38,6 +40,16 @@ def init_db(db_path: str) -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_url TEXT,
                 target_url TEXT
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS digests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                topic TEXT,
+                content TEXT,
+                article_count INTEGER,
+                created_at TEXT
             );
         """)
         conn.commit()
@@ -89,6 +101,27 @@ def insert_links(db_path: str, source_url: str, target_urls: List[str]) -> int:
     except sqlite3.Error as e:
         print(f"[DB Error] Failed to insert links for {source_url}: {e}")
         return 0
+
+def insert_digest(db_path: str, digest: Digest) -> bool:
+    """Store one combined digest from a crawl run."""
+    sql = """
+        INSERT INTO digests (topic, content, article_count, created_at)
+        VALUES (?, ?, ?, ?)
+    """
+    try:
+        with get_connection(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, (
+                digest.topic,
+                digest.content,
+                len(digest.articles),
+                digest.created_at,
+            ))
+            conn.commit()
+            return cursor.rowcount > 0
+    except sqlite3.Error as e:
+        print(f"[DB Error] Failed to insert digest: {e}")
+        return False
 
 def get_summary_stats(db_path: str) -> Dict[str, Any]:
     """Retrieve statistical aggregations from the database for the summary report."""

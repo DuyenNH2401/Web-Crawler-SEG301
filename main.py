@@ -1,19 +1,16 @@
+"""Run all five source crawlers and write one combined digest."""
+
 import argparse
-import sys
-from config import (
-    TOPIC,
-    SEED_URLS,
-    ALLOWED_DOMAINS,
-    MAX_DEPTH,
-    MAX_PAGES,
-    REQUEST_TIMEOUT,
-    CRAWL_DELAY,
-    DB_PATH,
-)
-from crawler import FocusedCrawler
+import os
+
 import database
+from config import DB_PATH, TOPIC
+from crawler import CrawlerEngine
+from digest import build_digest
+from sources import ALL_SOURCES
 
 
+<<<<<<< HEAD
 def print_banner(
     topic: str,
     seeds: list,
@@ -79,72 +76,68 @@ def print_summary(
 
 def main():
     parser = argparse.ArgumentParser(description="Focused Web Crawler for SEG301")
+=======
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Multi-source news crawler")
+>>>>>>> 73c7225514e14883d3bf6cd6a00bb4611de504c1
     parser.add_argument(
         "--max-pages",
         type=int,
-        default=MAX_PAGES,
-        help="Maximum number of pages to crawl",
+        default=None,
+        help="Override the configured page limit for every source",
     )
     parser.add_argument(
-        "--max-depth", type=int, default=MAX_DEPTH, help="Maximum crawl depth"
+        "--articles-per-source",
+        type=int,
+        default=1,
+        help="Number of article records to include from each source",
+    )
+    parser.add_argument(
+        "--max-depth",
+        type=int,
+        default=None,
+        help="Override the source-specific maximum depth",
     )
     parser.add_argument(
         "--delay",
         type=float,
-        default=CRAWL_DELAY,
-        help="Crawl delay between requests in seconds",
+        default=None,
+        help="Override the configured crawl delay for every source",
     )
     parser.add_argument(
         "--timeout",
         type=int,
-        default=REQUEST_TIMEOUT,
-        help="HTTP request timeout in seconds",
+        default=None,
+        help="Override the source-specific request timeout",
     )
     parser.add_argument(
         "--reset-db",
         action="store_true",
-        help="Delete existing database before crawling",
+        help="Delete the current crawl database before starting",
     )
-
     args = parser.parse_args()
 
-    if args.reset_db:
-        import os
+    if args.reset_db and os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
 
-        if os.path.exists(DB_PATH):
-            os.remove(DB_PATH)
-            print(f"Cleared existing database at {DB_PATH}")
-
-    print_banner(
-        topic=TOPIC,
-        seeds=SEED_URLS,
-        allowed_domains=ALLOWED_DOMAINS,
-        max_pages=args.max_pages,
-        max_depth=args.max_depth,
-        timeout=args.timeout,
-        delay=args.delay,
-    )
-
-    crawler = FocusedCrawler(
-        seed_urls=SEED_URLS,
-        allowed_domains=ALLOWED_DOMAINS,
-        max_depth=args.max_depth,
-        max_pages=args.max_pages,
-        crawl_delay=args.delay,
-        timeout=args.timeout,
-        db_path=DB_PATH,
-    )
-
-    try:
-        crawler.start()
-    except KeyboardInterrupt:
-        print(
-            "\n[!] Crawling interrupted by user. Generating summary from collected data..."
+    engine = CrawlerEngine(db_path=DB_PATH)
+    articles = []
+    for source in ALL_SOURCES:
+        print(f"\n===== {source.name} =====")
+        articles.extend(
+            engine.crawl(
+                source,
+                max_articles=args.articles_per_source,
+                max_pages=args.max_pages,
+                max_depth=args.max_depth,
+                crawl_delay=args.delay,
+                timeout=args.timeout,
+            )
         )
 
-    print_summary(
-        topic=TOPIC, seeds_count=len(SEED_URLS), crawler=crawler, db_path=DB_PATH
-    )
+    digest = build_digest(articles, topic=TOPIC)
+    database.insert_digest(DB_PATH, digest)
+    print(f"\nĐã lưu digest vào database: {DB_PATH} ({len(articles)} bài)")
 
 
 if __name__ == "__main__":

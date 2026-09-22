@@ -75,6 +75,7 @@ def is_domain_allowed(netloc: str, allowed_domains: List[str]) -> bool:
             return True
     return False
 
+<<<<<<< HEAD
 
 def _has_path_prefix(path: str, prefix: str) -> bool:
     return path == prefix or path.startswith(prefix + "/")
@@ -88,6 +89,75 @@ def is_excluded_bbc_url(url: str) -> bool:
 
 def is_crawlable_bbc_url(url: str) -> bool:
     """Accept BBC editorial pages while rejecting media and utility routes."""
+=======
+def is_article_url(url: str) -> bool:
+    """
+    Kiểm tra xem một URL có phải là bài báo hợp lệ hay không:
+    - Bắt buộc phải có đuôi .html
+    - Không phải error.html hay các trang chuyên đề topic-
+    - Có chứa mã số định danh bài viết VnExpress (ví dụ: -5122661.html)
+    """
+    parsed = urlparse(url)
+    path = parsed.path.lower()
+    
+    if not path.endswith(".html"):
+        return False
+        
+    if "error.html" in path or "topic-" in path:
+        return False
+        
+    return bool(re.search(r"-\d{5,}\.html$", path))
+
+def parse_page_data(html_content: str, url: str, depth: int, status_code: int) -> Dict[str, Any]:
+    """
+    Extract structured information from HTML content (Task 4).
+    Extracts: url, domain, title, clean article text content, depth, status code, timestamp.
+    """
+    soup = BeautifulSoup(html_content, "html.parser")
+    
+    # 1. Trích xuất Tiêu đề (Article Title)
+    h1_tag = soup.find(["h1", "h2"], class_=re.compile(r"title_post|title-detail|title_news_detail")) or soup.find("h1")
+    if h1_tag and h1_tag.get_text(strip=True):
+        title = h1_tag.get_text(strip=True)
+    elif soup.title and soup.title.string:
+        title = soup.title.get_text(strip=True)
+    else:
+        title = "Untitled Page"
+        
+    # Làm sạch hậu tố trang báo (ví dụ: ' - VnExpress International')
+    title = re.sub(r"\s*-\s*VnExpress International.*$", "", title, flags=re.IGNORECASE).strip()
+    
+    # 2. Trích xuất Nội dung Bài báo (Article Content)
+    lead_el = soup.find(class_=re.compile(r"lead_post_detail|description|lead_detail"))
+    lead_text = lead_el.get_text(strip=True) if lead_el else ""
+    
+    body_container = soup.find(class_=re.compile(r"fck_detail|article-body|content_detail")) or soup.find("article")
+    
+    body_paragraphs: List[str] = []
+    if body_container:
+        for junk in body_container(["script", "style", "figure", "iframe", "noscript", "svg"]):
+            junk.decompose()
+            
+        for p in body_container.find_all("p"):
+            p_text = p.get_text(strip=True)
+            if p_text and len(p_text) > 15:
+                body_paragraphs.append(p_text)
+                
+    if body_paragraphs or lead_text:
+        # Trang là bài báo hoàn chỉnh: ghép Lead + các đoạn văn bản chính
+        parts = []
+        if lead_text:
+            parts.append(lead_text)
+        parts.extend(body_paragraphs)
+        content = "\n\n".join(parts)
+    else:
+        # Trang danh mục hoặc trang chủ (fallback): làm sạch và trích xuất text
+        for element in soup(["script", "style", "noscript", "header", "footer", "nav"]):
+            element.decompose()
+        content = soup.get_text(separator=" ", strip=True)
+    
+    # 3. Domain
+>>>>>>> 73c7225514e14883d3bf6cd6a00bb4611de504c1
     parsed = urlparse(url)
     return (
         parsed.scheme.lower() in ("http", "https")
