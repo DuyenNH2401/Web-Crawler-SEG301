@@ -14,7 +14,9 @@ TOPIC = "News & Information"
 SEED_URLS = {
     "vnexpress": ["https://e.vnexpress.net/"],
     "cnn": ["https://edition.cnn.com"],
-    "bbc": ["https://www.bbc.com"],
+    # www.bbc.com does not resolve on some networks; the UK News endpoint serves
+    # the same crawlable BBC article URLs and is already in the domain allowlist.
+    "bbc": ["https://www.bbc.co.uk/news"],
     "guardian": [
         "https://www.theguardian.com",
         #"https://www.theguardian.com/world",
@@ -101,7 +103,8 @@ SOURCE_CONFIGS = {
     },
     "bbc": {
         "name": "BBC",
-        # Direct section URL avoids the /business redirect before crawling.
+        # Use the directly crawlable News section instead of the unreliable
+        # www.bbc.com hostname.
         "seed_urls": SEED_URLS["bbc"],
         "allowed_domains": ALLOWED_DOMAINS["bbc"],
         "headers": DEFAULT_HEADERS,

@@ -1,7 +1,7 @@
 """Shared BFS crawler engine for all configured news-source adapters."""
 
 import time
-from typing import Dict, List
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -55,7 +55,7 @@ class CrawlerEngine:
     def crawl(
         self,
         source: SourceAdapter,
-        max_articles: int = 1,
+        max_articles: Optional[int] = None,
         max_pages: int | None = None,
         max_depth: int | None = None,
         crawl_delay: float | None = None,
@@ -81,7 +81,7 @@ class CrawlerEngine:
             while (
                 not frontier.is_empty()
                 and pages_attempted < page_limit
-                and len(articles) < max_articles
+                and (max_articles is None or len(articles) < max_articles)
             ):
                 item = frontier.get_next()
                 if not item:

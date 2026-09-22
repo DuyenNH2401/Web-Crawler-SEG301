@@ -31,7 +31,7 @@ The configuration parameters are centralized in [`config.py`](config.py):
 | **Topic** | `News & Information` | Selected topic domain |
 | **Sources** | `5` | One adapter per newspaper |
 | **Maximum Pages (`--max-pages`)** | Source config (`100/source`) | Optional global override |
-| **Articles (`--articles-per-source`)** | `1/source` | Number of articles included in the digest |
+| **Articles (`--articles-per-source`)** | Unlimited | Optional early-stop limit per source |
 | **Maximum Depth (`--max-depth`)** | Source-specific | Preserves each original branch rule |
 | **Delay (`--delay`)** | Source-specific | Optional global override |
 | **Storage** | `data/crawler.db` | Pages, links, and combined digests |
@@ -139,7 +139,10 @@ python3 main.py
 
 Optional CLI parameters:
 ```bash
-# Quick run with 10 pages per source and one article per source
+# Crawl up to 10 pages per source; article count is unlimited by default
+python3 main.py --max-pages 10 --delay 0.5
+
+# Quick run that stops each source after its first article
 python3 main.py --max-pages 10 --articles-per-source 1 --delay 0.5
 
 # Reset existing database and start fresh
@@ -168,7 +171,7 @@ sqlite3 data/crawler.db "SELECT content FROM digests ORDER BY id DESC LIMIT 1;"
 ========== CRAWLING SUMMARY ==========
 Topic                  : News & Information
 Sources                : 5
-Articles in digest     : 5 by default
+Articles in digest     : All articles found within the page/depth limits
 Digest                 : `digests` table in `data/crawler.db`
 =======================================
 ```

@@ -21,8 +21,11 @@ def main() -> None:
     parser.add_argument(
         "--articles-per-source",
         type=int,
-        default=1,
-        help="Number of article records to include from each source",
+        default=None,
+        help=(
+            "Stop a source after collecting this many articles "
+            "(default: no article limit; --max-pages remains the crawl limit)"
+        ),
     )
     parser.add_argument(
         "--max-depth",
