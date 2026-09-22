@@ -1,23 +1,24 @@
 """
 Configuration settings for the Focused Web Crawler.
-Topic: News & Information (VnExpress International)
+Topic: Health News (CNN Edition)
 Course: SEG301 - Crawls and Feeds
 """
 import os
+import re
 
 # ==========================================
 # CRAWLER CONFIGURATION
 # ==========================================
-TOPIC = "News & Information"
+TOPIC = "Health News"
 
 # Seed URLs to initiate the crawling process
 SEED_URLS = [
-    "https://e.vnexpress.net/"
+    "https://edition.cnn.com/health"
 ]
 
-# Allowed domains constraint to keep the crawl focused on VnExpress International
+# Allowed domains constraint to keep the crawl focused on CNN Edition
 ALLOWED_DOMAINS = [
-    "e.vnexpress.net"
+    "edition.cnn.com"
 ]
 
 # Crawling constraints
@@ -26,9 +27,20 @@ MAX_PAGES = 100         # Maximum number of unique pages to download
 REQUEST_TIMEOUT = 10    # HTTP request timeout in seconds
 CRAWL_DELAY = 1.0       # Polite crawl delay between requests in seconds
 
-# Chỉ cào bài báo thực sự (bắt buộc đuôi .html và có mã bài viết)
-# Loại bỏ các trang danh mục như /news/life/wellness, /news/news...
+# Chỉ cào bài báo health thực sự (phải khớp URL_PATTERN)
 ARTICLES_ONLY = True
+
+# URL Pattern: CNN Health article format
+# Ví dụ: https://edition.cnn.com/2026/09/19/health/september-11-cancer-wave
+URL_PATTERN = re.compile(
+    r"^https://edition\.cnn\.com/\d{4}/\d{2}/\d{2}/health/[\w-]+$"
+)
+
+# CSS classes to exclude from content extraction
+# Loại bỏ nội dung nằm trong các thẻ có class này
+EXCLUDED_CSS_CLASSES = [
+    "vossi-related-content_elevate__body"
+]
 
 # SQLite Database storage path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -42,7 +54,7 @@ DEFAULT_HEADERS = {
         "Chrome/128.0.0.0 Safari/537.36 (SEG301EducationalBot/1.0)"
     ),
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9,vi;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
 }
 
 # Filtering rules: non-web resources and unneeded file extensions

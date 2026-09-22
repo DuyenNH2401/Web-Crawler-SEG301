@@ -3,20 +3,28 @@ Focused Web Crawler Engine.
 Tasks 3 & 9: Crawl Web Pages, Robots.txt Compliance, and Complete Crawling Pipeline.
 """
 import time
+import re
 from typing import Dict, Any, List, Optional
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 import requests
+from bs4 import BeautifulSoup
 
 from config import (
     TOPIC, SEED_URLS, ALLOWED_DOMAINS,
     MAX_DEPTH, MAX_PAGES, REQUEST_TIMEOUT, CRAWL_DELAY,
     ARTICLES_ONLY, DB_PATH, DEFAULT_HEADERS,
-    IGNORED_EXTENSIONS, IGNORED_SCHEMES, IGNORED_PATHS
+    IGNORED_EXTENSIONS, IGNORED_SCHEMES, IGNORED_PATHS,
+    URL_PATTERN, EXCLUDED_CSS_CLASSES
 )
 import database
 from url_frontier import URLFrontier
 import parser
+
+# Override is_article_url trong parser để dùng logic CNN Health
+# thay vì logic VnExpress gốc (cần đuôi .html + mã bài viết)
+# Điều này cho phép chỉ sửa crawler.py và config mà không cần sửa parser.py
+parser.is_article_url = lambda url: is_cnn_health_article(url)
 
 class RobotsManager:
     """Manages robots.txt caching and URL fetch permission checks."""
@@ -47,6 +55,36 @@ class RobotsManager:
             self.parsers[domain] = rp
 
         return self.parsers[domain].can_fetch(self.user_agent, url)
+
+def is_cnn_health_article(url: str) -> bool:
+    """
+    Kiểm tra xem URL có khớp định dạng bài báo CNN Health hay không.
+    Format: https://edition.cnn.com/YYYY/MM/DD/health/<article-slug>
+    Ví dụ:
+      - https://edition.cnn.com/2026/09/19/health/september-11-cancer-wave
+      - https://edition.cnn.com/2026/09/18/health/trump-split-up-immunization
+      - https://edition.cnn.com/2026/09/20/health/laughter-for-good-health-wellness
+    """
+    # Loại bỏ trailing slash nếu có
+    clean_url = url.rstrip("/")
+    return bool(URL_PATTERN.match(clean_url))
+
+def remove_excluded_elements(html_content: str, excluded_classes: List[str]) -> str:
+    """
+    Loại bỏ các thẻ HTML có class nằm trong danh sách excluded_classes khỏi nội dung HTML.
+    Trả về HTML đã được làm sạch dưới dạng string.
+    """
+    if not excluded_classes:
+        return html_content
+    
+    soup = BeautifulSoup(html_content, "html.parser")
+    
+    for css_class in excluded_classes:
+        # Tìm tất cả thẻ chứa class cần loại bỏ
+        for element in soup.find_all(class_=re.compile(re.escape(css_class))):
+            element.decompose()
+    
+    return str(soup)
 
 class FocusedCrawler:
     """
@@ -125,6 +163,10 @@ class FocusedCrawler:
                 if status_code == 200 and is_html:
                     html_text = response.text
                     
+                    # Loại bỏ các thẻ có class nằm trong EXCLUDED_CSS_CLASSES
+                    # trước khi truyền vào parser để trích xuất nội dung
+                    html_text = remove_excluded_elements(html_text, EXCLUDED_CSS_CLASSES)
+                    
                     # 4. Extract page metadata and visible text (Task 4)
                     page_data = parser.parse_page_data(
                         html_content=html_text,
@@ -139,7 +181,7 @@ class FocusedCrawler:
                     self.pages_crawled += 1
                     
                     # 6. Extract and filter hyperlinks (Task 5)
-                    # Chỉ chấp nhận link bài báo (.html) nếu bật articles_only
+                    # Chỉ chấp nhận link bài báo CNN Health nếu bật articles_only
                     extracted_links = parser.extract_and_filter_links(
                         html_content=html_text,
                         current_url=current_url,
