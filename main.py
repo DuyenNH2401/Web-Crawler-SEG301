@@ -1,148 +1,81 @@
+"""
+main.py - entry point.
+
+Usage:
+    python main.py
+    python main.py --max-pages 20 --max-depth 1
+"""
+
 import argparse
 import sys
-from config import (
-    TOPIC,
-    SEED_URLS,
-    ALLOWED_DOMAINS,
-    MAX_DEPTH,
-    MAX_PAGES,
-    REQUEST_TIMEOUT,
-    CRAWL_DELAY,
-    DB_PATH,
-)
-from crawler import FocusedCrawler
-import database
+
+import config
+from crawler import Crawler
+
+# Page titles contain characters (curly quotes, dashes, accents) that the
+# default Windows console encoding cannot represent. Without this, printing a
+# headline raises UnicodeEncodeError and kills the crawl mid-run.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
-def print_banner(
-    topic: str,
-    seeds: list,
-    allowed_domains: list,
-    max_pages: int,
-    max_depth: int,
-    timeout: int,
-    delay: float,
-) -> None:
-    """Display the crawler configuration banner as required by Task 1."""
-    print("=========================================")
-    print("FOCUSED WEB CRAWLER")
-    print("=========================================")
-    print(f"Topic: {topic}")
-    print("Seed URLs:")
-    for idx, url in enumerate(seeds, start=1):
-        print(f"{idx}. {url}")
+def print_configuration():
+    """Task 1 - show the crawling configuration."""
+    print("=" * 41)
+    print("          FOCUSED WEB CRAWLER")
+    print("=" * 41)
+    print("========== CRAWLER CONFIGURATION ==========")
+    print(f"Topic          : {config.TOPIC}")
+    print(f"Seed URLs      : {len(config.SEED_URLS)}")
+    for i, url in enumerate(config.SEED_URLS, start=1):
+        print(f"    {i}. {url}")
     print("Allowed Domains:")
-    for domain in allowed_domains:
-        print(f"- {domain}")
-    print(f"Maximum Pages : {max_pages}")
-    print(f"Maximum Depth : {max_depth}")
-    print(f"Request Timeout: {timeout} seconds")
-    print(f"Crawl Delay   : {delay} second(s)")
-    print("-----------------------------------------")
+    for domain in config.ALLOWED_DOMAINS:
+        print(f"    - {domain}")
+    print(f"Maximum Depth  : {config.MAX_DEPTH}")
+    print(f"Maximum Pages  : {config.MAX_PAGES}")
+    print(f"Request Timeout: {config.REQUEST_TIMEOUT} seconds")
+    print(f"Crawl Delay    : {config.CRAWL_DELAY} second(s)")
+    print(f"Respect robots : {config.RESPECT_ROBOTS}")
+    print("=" * 43)
 
 
-def print_summary(
-    topic: str, seeds_count: int, crawler: FocusedCrawler, db_path: str
-) -> None:
-    """
-    Display the crawling summary statistics computed from database and crawler state.
-    Task 14: Crawling Statistics.
-    """
-    stats = database.get_summary_stats(db_path)
-
-    print("\n========== CRAWLING SUMMARY ==========")
-    print(f"Topic                  : {topic}")
-    print(f"Seed URLs              : {seeds_count}")
-    print(f"Pages Crawled          : {crawler.pages_crawled}")
-    print(f"Unique URLs Discovered : {crawler.frontier.total_discovered}")
-    print(
-        f"Skipped URLs           : {crawler.frontier.total_skipped + crawler.skipped_robots}"
-    )
-    print(f"Failed Requests        : {crawler.failed_requests}")
-    print(f"Maximum Depth          : {crawler.max_depth}\n")
-
-    # Depth breakdown
-    for depth in range(crawler.max_depth + 1):
-        count = stats["depth_counts"].get(depth, 0)
-        print(f"Depth {depth:<16} : {count} pages")
-    print()
-
-    # HTTP status code breakdown
-    for code, count in sorted(stats["status_code_counts"].items()):
-        print(f"HTTP {code:<17} : {count}")
-
-    print("=======================================")
+def parse_args():
+    ap = argparse.ArgumentParser(description="SEG301 focused web crawler")
+    ap.add_argument("--max-pages", type=int, help="override MAX_PAGES")
+    ap.add_argument("--max-depth", type=int, help="override MAX_DEPTH")
+    ap.add_argument("--delay", type=float, help="override CRAWL_DELAY")
+    ap.add_argument("--links-per-page", type=int,
+                    help="override MAX_LINKS_PER_PAGE (0 = unlimited)")
+    ap.add_argument("--keep-db", action="store_true",
+                    help="append to the existing database instead of clearing it")
+    return ap.parse_args()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Focused Web Crawler for SEG301")
-    parser.add_argument(
-        "--max-pages",
-        type=int,
-        default=MAX_PAGES,
-        help="Maximum number of pages to crawl",
-    )
-    parser.add_argument(
-        "--max-depth", type=int, default=MAX_DEPTH, help="Maximum crawl depth"
-    )
-    parser.add_argument(
-        "--delay",
-        type=float,
-        default=CRAWL_DELAY,
-        help="Crawl delay between requests in seconds",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=REQUEST_TIMEOUT,
-        help="HTTP request timeout in seconds",
-    )
-    parser.add_argument(
-        "--reset-db",
-        action="store_true",
-        help="Delete existing database before crawling",
-    )
+    args = parse_args()
+    if args.max_pages is not None:
+        config.MAX_PAGES = args.max_pages
+    if args.max_depth is not None:
+        config.MAX_DEPTH = args.max_depth
+    if args.delay is not None:
+        config.CRAWL_DELAY = args.delay
+    if args.links_per_page is not None:
+        config.MAX_LINKS_PER_PAGE = args.links_per_page
 
-    args = parser.parse_args()
+    print_configuration()
 
-    if args.reset_db:
-        import os
-
-        if os.path.exists(DB_PATH):
-            os.remove(DB_PATH)
-            print(f"Cleared existing database at {DB_PATH}")
-
-    print_banner(
-        topic=TOPIC,
-        seeds=SEED_URLS,
-        allowed_domains=ALLOWED_DOMAINS,
-        max_pages=args.max_pages,
-        max_depth=args.max_depth,
-        timeout=args.timeout,
-        delay=args.delay,
-    )
-
-    crawler = FocusedCrawler(
-        seed_urls=SEED_URLS,
-        allowed_domains=ALLOWED_DOMAINS,
-        max_depth=args.max_depth,
-        max_pages=args.max_pages,
-        crawl_delay=args.delay,
-        timeout=args.timeout,
-        db_path=DB_PATH,
-    )
-
+    crawler = Crawler(fresh=not args.keep_db)
     try:
-        crawler.start()
+        crawler.crawl()
     except KeyboardInterrupt:
-        print(
-            "\n[!] Crawling interrupted by user. Generating summary from collected data..."
-        )
-
-    print_summary(
-        topic=TOPIC, seeds_count=len(SEED_URLS), crawler=crawler, db_path=DB_PATH
-    )
+        print("\n\nInterrupted by user - showing partial results.")
+        crawler.stats["finished_at"] = None
+    finally:
+        crawler.print_summary()
+        crawler.close()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

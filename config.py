@@ -1,62 +1,101 @@
 """
-Configuration settings for the Focused Web Crawler.
-Topic: News & Information (VnExpress International)
-Course: SEG301 - Crawls and Feeds
-"""
-import os
+config.py - Task 1: crawling configuration.
 
-# ==========================================
-# CRAWLER CONFIGURATION
-# ==========================================
+Everything that controls *what* and *how much* gets crawled lives here, so the
+crawler logic never has to be edited to change a run.
+"""
+
+# ---------------------------------------------------------------- topic ----
 TOPIC = "News & Information"
 
-# Seed URLs to initiate the crawling process
+# Single-domain focused crawl: The Guardian only.
+#
+# To widen the crawl to a second domain from the same topic, uncomment the BBC
+# entries below in DOMAINS, SEED_URLS and ALLOWED_DOMAINS - nothing else needs
+# to change. (BBC was verified as crawlable: robots.txt allows the seed and it
+# answers HTTP 200. Reuters was rejected - robots.txt disallows the seed page
+# and the site answers HTTP 401.)
+DOMAINS = [
+    "The Guardian",
+    # "BBC",
+]
+
 SEED_URLS = [
-    "https://e.vnexpress.net/"
+    "https://www.theguardian.com/international",
+    "https://www.theguardian.com/world",
+    # "https://www.bbc.com/news",
 ]
 
-# Allowed domains constraint to keep the crawl focused on VnExpress International
+# Domain rule: a URL is in-scope when its host equals one of these entries or
+# is a subdomain of one. So theguardian.com, www.theguardian.com and
+# amp.theguardian.com are all accepted, while theguardian.com.evil.net is not
+# (see parser.is_allowed_domain).
 ALLOWED_DOMAINS = [
-    "e.vnexpress.net"
+    "theguardian.com",
+    # "bbc.com",
 ]
 
-# Crawling constraints
-MAX_DEPTH = 3           # Maximum crawl depth (Seed URL is depth 0)
-MAX_PAGES = 100         # Maximum number of unique pages to download
-REQUEST_TIMEOUT = 10    # HTTP request timeout in seconds
-CRAWL_DELAY = 1.0       # Polite crawl delay between requests in seconds
+# The subdomain rule above is deliberately permissive, but theguardian.com
+# hangs a lot of non-editorial business off its own subdomains: a holiday shop,
+# the subscription and account portals, a jobs board and the ad sales sites.
+# Those are on-domain by the rule yet carry no journalism, so they are excluded
+# by host. Only the editorial hosts survive.
+BLOCKED_SUBDOMAINS = (
+    "holidays", "support", "manage", "profile", "jobs", "patrons",
+    "advertising", "usadvertising", "ausadvertising", "syndication",
+    "workforus", "sourcing", "contribute", "membership",
+)
 
-# Chỉ cào bài báo thực sự (bắt buộc đuôi .html và có mã bài viết)
-# Loại bỏ các trang danh mục như /news/life/wellness, /news/news...
-ARTICLES_ONLY = True
+# --------------------------------------------------------- crawl limits ----
+MAX_DEPTH = 2          # seeds are depth 0
+MAX_PAGES = 100
+REQUEST_TIMEOUT = 10   # seconds
+CRAWL_DELAY = 1.0      # seconds between two requests
 
-# SQLite Database storage path
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-DB_PATH = os.path.join(DATA_DIR, "crawler.db")
+# A Guardian section page yields ~80 in-scope links, so two seeds alone produce
+# ~150 URLs at depth 1 - more than MAX_PAGES. Breadth-first order then spends
+# the whole page budget on depth 1 and never reaches depth 2, which is correct
+# BFS behaviour but leaves the depth limit untested.
+#
+# Setting this to a small number caps how many links each page contributes to
+# the frontier, so the crawl descends instead of fanning out. 0 = unlimited
+# (the default, and the honest breadth-first sample).
+MAX_LINKS_PER_PAGE = 0
 
-# HTTP Request Headers
-DEFAULT_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/128.0.0.0 Safari/537.36 (SEG301EducationalBot/1.0)"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9,vi;q=0.8",
-}
+# ------------------------------------------------------------- politeness --
+USER_AGENT = "SEG301-StudentCrawler/1.0 (coursework; contact: student@fpt.edu.vn)"
+RESPECT_ROBOTS = True
 
-# Filtering rules: non-web resources and unneeded file extensions
-IGNORED_EXTENSIONS = {
-    ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".ico",
-    ".css", ".js", ".json", ".xml",
-    ".zip", ".tar", ".gz", ".rar", ".7z",
-    ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
-    ".mp3", ".mp4", ".wav", ".avi", ".mov", ".mkv",
-    ".exe", ".dmg", ".apk", ".bin"
-}
+# ------------------------------------------------------------- filtering ---
+# Link targets that are not web pages at all.
+BLOCKED_SCHEMES = ("mailto:", "javascript:", "tel:", "sms:", "ftp:", "file:")
 
-# Filtering rules: ignored URL schemes
-IGNORED_SCHEMES = {"mailto", "javascript", "tel", "data", "sms", "ftp"}
+BLOCKED_EXTENSIONS = (
+    ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".ico", ".bmp",
+    ".css", ".js", ".json", ".xml", ".rss",
+    ".zip", ".gz", ".tar", ".rar",
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    ".mp3", ".mp4", ".avi", ".mov", ".wav", ".webm",
+)
 
-# Filtering rules: paths to ignore (e.g. error redirect pages)
-IGNORED_PATHS = {"/error.html", "/error"}
+# "Focused" crawler: theguardian.com hosts a lot besides written journalism -
+# a video player, photo galleries, crosswords, a shop, a jobs board and the
+# subscription funnel. Those pages are on-domain but carry no article text, so
+# they are excluded to keep the collected corpus on-topic.
+#
+# Note: /search, /discussion, /email, /print, /preference and /sections are
+# already Disallowed by theguardian.com/robots.txt, so the robots check
+# rejects them too; they are not duplicated here.
+BLOCKED_PATH_PREFIXES = (
+    "/video", "/audio", "/pictures", "/ng-interactive",
+    "/crosswords", "/puzzles",
+    "/signin", "/register", "/profile", "/account",
+    "/help", "/info", "/about", "/contactus",
+    "/membership", "/subscribe", "/contribute", "/give",
+    "/jobs", "/guardian-masterclasses", "/guardian-live-events",
+    "/index", "/tone", "/applications",
+)
+
+# ------------------------------------------------------------- storage -----
+DATABASE_PATH = "data/crawler.db"
+MAX_CONTENT_CHARS = 20000   # keeps the DB a sensible size; 0 = no limit

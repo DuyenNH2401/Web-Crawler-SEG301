@@ -1,185 +1,168 @@
 """
-HTML parsing and link extraction/filtering module using BeautifulSoup.
-Tasks 4 & 5: Extract Page Information and Filter Hyperlinks.
-Specially optimized for News Article content extraction.
+parser.py - Tasks 4, 5 and 7: page parsing, link extraction, URL filtering
+and URL normalization.
 """
-import re
+
 from datetime import datetime
-from typing import Dict, List, Any, Set
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urldefrag, urljoin, urlparse, urlunparse
+
 from bs4 import BeautifulSoup
 
-def is_domain_allowed(netloc: str, allowed_domains: List[str]) -> bool:
+import config
+
+# Tags whose text is navigation / boilerplate rather than article content.
+NOISE_TAGS = ("script", "style", "noscript", "nav", "header", "footer", "aside", "form")
+
+
+# --------------------------------------------------------------------------
+# Task 7 - URL normalization
+# --------------------------------------------------------------------------
+def normalize_url(url):
     """
-    Check if the URL netloc belongs to or is a subdomain of the allowed domains list.
-    Handles 'example.com', 'e.vnexpress.net'.
+    Return a canonical form of `url` so that URLs which point at the same page
+    are recognised as duplicates.
+
+    Applied rules:
+      - lowercase the scheme and host (paths stay case-sensitive)
+      - drop the #fragment
+      - drop a default port (:80 / :443)
+      - drop a trailing slash, except on the site root
     """
-    netloc = netloc.lower()
-    for domain in allowed_domains:
-        domain = domain.lower()
-        if netloc == domain or netloc.endswith("." + domain):
+    url, _ = urldefrag(url.strip())
+    parts = urlparse(url)
+
+    host = parts.netloc.lower()
+    if host.endswith(":80"):
+        host = host[:-3]
+    elif host.endswith(":443"):
+        host = host[:-4]
+
+    path = parts.path or "/"
+    if len(path) > 1 and path.endswith("/"):
+        path = path.rstrip("/")
+
+    return urlunparse((parts.scheme.lower(), host, path, parts.params, parts.query, ""))
+
+
+# --------------------------------------------------------------------------
+# Task 5 - URL filtering
+# --------------------------------------------------------------------------
+def is_allowed_domain(url):
+    """True when the host is an allowed domain or a subdomain of one."""
+    host = urlparse(url).netloc.lower()
+    if host.startswith("www."):
+        host = host[4:]
+    for domain in config.ALLOWED_DOMAINS:
+        if host == domain or host.endswith("." + domain):
             return True
     return False
 
-def is_article_url(url: str) -> bool:
-    """
-    Kiểm tra xem một URL có phải là bài báo hợp lệ hay không:
-    - Bắt buộc phải có đuôi .html
-    - Không phải error.html hay các trang chuyên đề topic-
-    - Có chứa mã số định danh bài viết VnExpress (ví dụ: -5122661.html)
-    """
-    parsed = urlparse(url)
-    path = parsed.path.lower()
-    
-    # 1. Bắt buộc có đuôi .html
-    if not path.endswith(".html"):
-        return False
-        
-    # 2. Loại bỏ các trang lỗi hoặc danh mục topic
-    if "error.html" in path or "topic-" in path:
-        return False
-        
-    # 3. Phải chứa mã bài viết (chuỗi chữ số trước .html)
-    # Ví dụ: ...-south-korea-s-second-largest-city-welcomes-3-million-tourists-in-seven-months-5122661.html
-    return bool(re.search(r"-\d{5,}\.html$", path))
 
-def parse_page_data(html_content: str, url: str, depth: int, status_code: int) -> Dict[str, Any]:
+def is_blocked_subdomain(url):
     """
-    Extract structured information from HTML content (Task 4).
-    Extracts: url, domain, title, clean article text content, depth, status code, timestamp.
+    True for on-domain hosts that carry no journalism - the shop, the account
+    portals, the jobs board. Checked as a whole label so that a hypothetical
+    `supportive.theguardian.com` is not caught by the `support` entry.
     """
-    soup = BeautifulSoup(html_content, "html.parser")
-    
-    # 1. Trích xuất Tiêu đề (Article Title)
-    # Ưu tiên h1 đặc thù của trang chi tiết bài báo
-    h1_tag = soup.find(["h1", "h2"], class_=re.compile(r"title_post|title-detail|title_news_detail")) or soup.find("h1")
-    if h1_tag and h1_tag.get_text(strip=True):
-        title = h1_tag.get_text(strip=True)
-    elif soup.title and soup.title.string:
-        title = soup.title.get_text(strip=True)
-    else:
-        title = "Untitled Page"
-        
-    # Làm sạch hậu tố trang báo (ví dụ: ' - VnExpress International')
-    title = re.sub(r"\s*-\s*VnExpress International.*$", "", title, flags=re.IGNORECASE).strip()
-    
-    # 2. Trích xuất Nội dung Bài báo (Article Content)
-    # Tìm đoạn mô tả / Sapo (Lead paragraph)
-    lead_el = soup.find(class_=re.compile(r"lead_post_detail|description|lead_detail"))
-    lead_text = lead_el.get_text(strip=True) if lead_el else ""
-    
-    # Tìm vùng chứa nội dung chính bài báo (Article Body)
-    body_container = soup.find(class_=re.compile(r"fck_detail|article-body|content_detail")) or soup.find("article")
-    
-    body_paragraphs: List[str] = []
-    if body_container:
-        # Loại bỏ các thành phần rác (quảng cáo, script, caption ảnh dư thừa, video widget)
-        for junk in body_container(["script", "style", "figure", "iframe", "noscript", "svg"]):
-            junk.decompose()
-            
-        for p in body_container.find_all("p"):
-            p_text = p.get_text(strip=True)
-            # Bỏ qua các đoạn quá ngắn hoặc đoạn bản quyền footer
-            if p_text and len(p_text) > 15:
-                body_paragraphs.append(p_text)
-                
-    if body_paragraphs or lead_text:
-        # Trang là bài báo hoàn chỉnh: ghép Lead + các đoạn văn bản chính
-        parts = []
-        if lead_text:
-            parts.append(lead_text)
-        parts.extend(body_paragraphs)
-        content = "\n\n".join(parts)
-    else:
-        # Trang danh mục hoặc trang chủ (fallback): làm sạch và trích xuất text
-        for element in soup(["script", "style", "noscript", "header", "footer", "nav"]):
-            element.decompose()
-        content = soup.get_text(separator=" ", strip=True)
-    
-    # 3. Domain
-    parsed = urlparse(url)
-    domain = parsed.netloc.lower()
-    
-    # 4. Crawled Timestamp
-    crawled_at = datetime.now().isoformat()
-    
-    return {
-        "url": url,
-        "domain": domain,
-        "title": title,
-        "content": content,
-        "depth": depth,
-        "status_code": status_code,
-        "crawled_at": crawled_at
-    }
+    host = urlparse(url).netloc.lower()
+    label = host.split(".", 1)[0]
+    return label in config.BLOCKED_SUBDOMAINS
 
-def extract_and_filter_links(
-    html_content: str,
-    current_url: str,
-    allowed_domains: List[str],
-    ignored_extensions: Set[str],
-    ignored_schemes: Set[str],
-    ignored_paths: Set[str] = None,
-    articles_only: bool = True
-) -> List[str]:
-    """
-    Extract hyperlinks from HTML and apply filtering rules (Task 5):
-    1. Resolve relative URLs using urljoin.
-    2. Ignore unsupported schemes (mailto:, javascript:, tel:, etc.).
-    3. Ignore static assets (.jpg, .pdf, .css, .zip, etc.).
-    4. Check domain whitelist against allowed_domains.
-    5. Strip fragment anchors (#...).
-    6. Filter out known error paths (e.g. /error.html).
-    7. Filter by articles_only: BẮT BUỘC có đuôi .html và là bài báo thực sự!
-    """
-    if ignored_paths is None:
-        ignored_paths = set()
 
-    soup = BeautifulSoup(html_content, "html.parser")
-    seen_in_page: Set[str] = set()
-    valid_links: List[str] = []
-    
+def is_crawlable(url):
+    """
+    Decide whether `url` should ever be fetched.
+
+    Returns (True, "") when it should, or (False, reason) when it should not.
+    The reason string is what the crawler prints and counts in its statistics.
+    """
+    lowered = url.lower()
+
+    for scheme in config.BLOCKED_SCHEMES:
+        if lowered.startswith(scheme):
+            return False, "non-http scheme"
+
+    parts = urlparse(url)
+    if parts.scheme not in ("http", "https"):
+        return False, "non-http scheme"
+    if not parts.netloc:
+        return False, "no host"
+
+    if not is_allowed_domain(url):
+        return False, "outside allowed domains"
+
+    if is_blocked_subdomain(url):
+        return False, "non-editorial subdomain"
+
+    path = parts.path.lower()
+    for ext in config.BLOCKED_EXTENSIONS:
+        if path.endswith(ext):
+            return False, "non-web resource"
+
+    for prefix in config.BLOCKED_PATH_PREFIXES:
+        if path.startswith(prefix):
+            return False, "blocked path"
+
+    return True, ""
+
+
+def extract_links(soup, current_url):
+    """
+    Task 5 - collect every <a href> on the page, turn it into an absolute,
+    normalized URL, and split the result into accepted and rejected URLs.
+
+    Returns (valid_urls, all_urls, rejected) where `rejected` is a list of
+    (url, reason) pairs used for the statistics.
+    """
+    valid, all_urls, rejected = [], [], []
+    seen = set()
+
     for tag in soup.find_all("a", href=True):
         href = tag["href"].strip()
         if not href:
             continue
-            
-        # Convert relative link to absolute URL
-        absolute_url = urljoin(current_url, href)
-        
-        # Remove URL fragment / hash (#...)
-        clean_url = absolute_url.split("#")[0].strip()
-        if not clean_url or clean_url in seen_in_page:
-            continue
-        seen_in_page.add(clean_url)
-        
-        parsed = urlparse(clean_url)
-        
-        # Check scheme (only http and https allowed)
-        if parsed.scheme.lower() not in ("http", "https"):
-            continue
-        if parsed.scheme.lower() in ignored_schemes:
-            continue
-            
-        # Check domain constraint
-        if not is_domain_allowed(parsed.netloc, allowed_domains):
-            continue
-            
-        # Check file extension
-        path_lower = parsed.path.lower()
-        if any(path_lower.endswith(ext) for ext in ignored_extensions):
-            continue
-            
-        # Check ignored path patterns
-        if any(path_lower == ipath or path_lower.startswith(ipath) for ipath in ignored_paths):
-            continue
 
-        # NẾU BẬT CHẾ ĐỘ CHỈ CÀO BÀI BÁO: Kiểm tra bắt buộc đuôi .html và mã bài viết
-        if articles_only:
-            if not is_article_url(clean_url):
-                # Bỏ qua các trang danh mục như /news/life/wellness, /news/news, etc.
-                continue
+        absolute_url = normalize_url(urljoin(current_url, href))
+        if absolute_url in seen:
+            continue
+        seen.add(absolute_url)
+        all_urls.append(absolute_url)
 
-        valid_links.append(clean_url)
-            
-    return valid_links
+        ok, reason = is_crawlable(absolute_url)
+        if ok:
+            valid.append(absolute_url)
+        else:
+            rejected.append((absolute_url, reason))
+
+    return valid, all_urls, rejected
+
+
+# --------------------------------------------------------------------------
+# Task 4 - page information
+# --------------------------------------------------------------------------
+def make_soup(html):
+    return BeautifulSoup(html, "html.parser")
+
+
+def extract_page_data(soup, url, depth, status_code):
+    """Build the structured page record that Task 4 asks for."""
+    title = soup.title.get_text(strip=True) if soup.title else ""
+
+    # Remove boilerplate before taking the text, so the stored content is
+    # closer to the actual article.
+    for tag in soup.find_all(NOISE_TAGS):
+        tag.decompose()
+
+    content = soup.get_text(separator=" ", strip=True)
+    if config.MAX_CONTENT_CHARS:
+        content = content[:config.MAX_CONTENT_CHARS]
+
+    return {
+        "url": url,
+        "domain": urlparse(url).netloc.lower(),
+        "title": title,
+        "content": content,
+        "depth": depth,
+        "status_code": status_code,
+        "crawled_at": datetime.now().isoformat(timespec="seconds"),
+    }
