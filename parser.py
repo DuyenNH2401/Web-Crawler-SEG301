@@ -31,16 +31,12 @@ def is_article_url(url: str) -> bool:
     parsed = urlparse(url)
     path = parsed.path.lower()
     
-    # 1. Bắt buộc có đuôi .html
     if not path.endswith(".html"):
         return False
         
-    # 2. Loại bỏ các trang lỗi hoặc danh mục topic
     if "error.html" in path or "topic-" in path:
         return False
         
-    # 3. Phải chứa mã bài viết (chuỗi chữ số trước .html)
-    # Ví dụ: ...-south-korea-s-second-largest-city-welcomes-3-million-tourists-in-seven-months-5122661.html
     return bool(re.search(r"-\d{5,}\.html$", path))
 
 def parse_page_data(html_content: str, url: str, depth: int, status_code: int) -> Dict[str, Any]:
@@ -51,7 +47,6 @@ def parse_page_data(html_content: str, url: str, depth: int, status_code: int) -
     soup = BeautifulSoup(html_content, "html.parser")
     
     # 1. Trích xuất Tiêu đề (Article Title)
-    # Ưu tiên h1 đặc thù của trang chi tiết bài báo
     h1_tag = soup.find(["h1", "h2"], class_=re.compile(r"title_post|title-detail|title_news_detail")) or soup.find("h1")
     if h1_tag and h1_tag.get_text(strip=True):
         title = h1_tag.get_text(strip=True)
@@ -64,22 +59,18 @@ def parse_page_data(html_content: str, url: str, depth: int, status_code: int) -
     title = re.sub(r"\s*-\s*VnExpress International.*$", "", title, flags=re.IGNORECASE).strip()
     
     # 2. Trích xuất Nội dung Bài báo (Article Content)
-    # Tìm đoạn mô tả / Sapo (Lead paragraph)
     lead_el = soup.find(class_=re.compile(r"lead_post_detail|description|lead_detail"))
     lead_text = lead_el.get_text(strip=True) if lead_el else ""
     
-    # Tìm vùng chứa nội dung chính bài báo (Article Body)
     body_container = soup.find(class_=re.compile(r"fck_detail|article-body|content_detail")) or soup.find("article")
     
     body_paragraphs: List[str] = []
     if body_container:
-        # Loại bỏ các thành phần rác (quảng cáo, script, caption ảnh dư thừa, video widget)
         for junk in body_container(["script", "style", "figure", "iframe", "noscript", "svg"]):
             junk.decompose()
             
         for p in body_container.find_all("p"):
             p_text = p.get_text(strip=True)
-            # Bỏ qua các đoạn quá ngắn hoặc đoạn bản quyền footer
             if p_text and len(p_text) > 15:
                 body_paragraphs.append(p_text)
                 
