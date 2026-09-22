@@ -5,14 +5,12 @@ from urllib.parse import urldefrag, urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 
+import config
 from sources.base import SourceAdapter
 
 
-SEED_URLS = [
-    "https://www.theguardian.com/international",
-    "https://www.theguardian.com/world",
-]
-ALLOWED_DOMAINS = ["theguardian.com"]
+GUARDIAN_SETTINGS = config.SOURCE_CONFIGS["guardian"]
+ALLOWED_DOMAINS = GUARDIAN_SETTINGS["allowed_domains"]
 BLOCKED_SUBDOMAINS = (
     "holidays", "support", "manage", "profile", "jobs", "patrons",
     "advertising", "usadvertising", "ausadvertising", "syndication",
@@ -31,7 +29,7 @@ BLOCKED_PATH_PREFIXES = (
     "/contactus", "/membership", "/subscribe", "/contribute", "/give", "/jobs",
     "/guardian-masterclasses", "/guardian-live-events", "/index", "/tone", "/applications",
 )
-MAX_CONTENT_CHARS = 20000
+MAX_CONTENT_CHARS = GUARDIAN_SETTINGS["max_content_chars"]
 
 
 def normalize_url(url):
@@ -125,14 +123,14 @@ def extract_page_data(soup, url, depth, status_code):
 
 
 class GuardianSource(SourceAdapter):
-    name = "The Guardian"
-    seed_urls = SEED_URLS
-    allowed_domains = ALLOWED_DOMAINS
-    headers = {"User-Agent": "SEG301-StudentCrawler/1.0 (coursework; contact: student@fpt.edu.vn)"}
-    max_depth = 2
-    max_pages = 100
-    request_timeout = 10
-    crawl_delay = 1.0
+    name = GUARDIAN_SETTINGS["name"]
+    seed_urls = GUARDIAN_SETTINGS["seed_urls"]
+    allowed_domains = GUARDIAN_SETTINGS["allowed_domains"]
+    headers = GUARDIAN_SETTINGS["headers"]
+    max_depth = GUARDIAN_SETTINGS["max_depth"]
+    max_pages = GUARDIAN_SETTINGS["max_pages"]
+    request_timeout = GUARDIAN_SETTINGS["request_timeout"]
+    crawl_delay = GUARDIAN_SETTINGS["crawl_delay"]
 
     def is_allowed_url(self, url: str) -> bool:
         return is_crawlable(url)[0]

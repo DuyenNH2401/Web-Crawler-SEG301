@@ -5,17 +5,14 @@ from urllib.parse import urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 
+import config
 from sources.base import SourceAdapter
 
 
-SEED_URLS = ["https://www.globaltimes.cn/"]
-ALLOWED_DOMAINS = ["globaltimes.cn"]
-IGNORED_EXTENSIONS = {
-    ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".ico",
-    ".css", ".js", ".zip", ".pdf", ".mp3", ".mp4", ".wav",
-    ".woff", ".woff2", ".ttf", ".eot", ".xml", ".json",
-}
-IGNORED_SCHEMES = {"mailto", "javascript", "tel", "ftp"}
+GLOBAL_TIMES_SETTINGS = config.SOURCE_CONFIGS["globaltimes"]
+ALLOWED_DOMAINS = GLOBAL_TIMES_SETTINGS["allowed_domains"]
+IGNORED_EXTENSIONS = GLOBAL_TIMES_SETTINGS["ignored_extensions"]
+IGNORED_SCHEMES = GLOBAL_TIMES_SETTINGS["ignored_schemes"]
 
 
 def normalize_domain(netloc):
@@ -84,20 +81,14 @@ def extract_links(soup, current_url):
 
 
 class GlobalTimesSource(SourceAdapter):
-    name = "Global Times"
-    seed_urls = SEED_URLS
-    allowed_domains = ALLOWED_DOMAINS
-    headers = {
-        "User-Agent": "SEG301-EducationalCrawler/1.0 (student project; contact: hovinhhung29@gmail.com)",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-    }
-    max_depth = 3
-    max_pages = 100
-    request_timeout = 20
-    crawl_delay = 1.5
+    name = GLOBAL_TIMES_SETTINGS["name"]
+    seed_urls = GLOBAL_TIMES_SETTINGS["seed_urls"]
+    allowed_domains = GLOBAL_TIMES_SETTINGS["allowed_domains"]
+    headers = GLOBAL_TIMES_SETTINGS["headers"]
+    max_depth = GLOBAL_TIMES_SETTINGS["max_depth"]
+    max_pages = GLOBAL_TIMES_SETTINGS["max_pages"]
+    request_timeout = GLOBAL_TIMES_SETTINGS["request_timeout"]
+    crawl_delay = GLOBAL_TIMES_SETTINGS["crawl_delay"]
 
     def is_allowed_url(self, url: str) -> bool:
         return is_valid_url(url) and is_allowed_domain(url)

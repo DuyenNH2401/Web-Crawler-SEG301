@@ -7,10 +7,12 @@ from urllib.parse import urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 
+import config
 from sources.base import SourceAdapter
 
 
-BBC_DOMAINS = ("bbc.com", "bbc.co.uk")
+BBC_SETTINGS = config.SOURCE_CONFIGS["bbc"]
+BBC_DOMAINS = tuple(BBC_SETTINGS["allowed_domains"])
 BBC_ARTICLE_PATH_PATTERNS = (
     re.compile(r"^/(?:[a-z0-9-]+/)*articles/[a-z0-9]{8,20}/?$"),
     re.compile(r"^/news/(?:[a-z0-9-]+/)*[a-z0-9-]+-\d{5,}(?:\.html)?/?$"),
@@ -31,15 +33,9 @@ ARTICLE_JUNK_SELECTORS = (
     '[data-testid="socialShareTriggerButton"]', '[class*="AdSlot"]',
     '[class*="Caption"]', '[id*="smp-ads"]',
 )
-IGNORED_EXTENSIONS = {
-    ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".ico",
-    ".css", ".js", ".json", ".xml", ".zip", ".tar", ".gz", ".rar", ".7z",
-    ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
-    ".mp3", ".mp4", ".wav", ".avi", ".mov", ".mkv",
-    ".exe", ".dmg", ".apk", ".bin",
-}
-IGNORED_SCHEMES = {"mailto", "javascript", "tel", "data", "sms", "ftp"}
-IGNORED_PATHS = {"/error.html", "/error"}
+IGNORED_EXTENSIONS = BBC_SETTINGS["ignored_extensions"]
+IGNORED_SCHEMES = BBC_SETTINGS["ignored_schemes"]
+IGNORED_PATHS = BBC_SETTINGS["ignored_paths"]
 
 
 def is_domain_allowed(netloc: str, allowed_domains: List[str]) -> bool:
@@ -235,21 +231,14 @@ def extract_and_filter_links(html_content: str, current_url: str) -> List[str]:
 
 
 class BBCSource(SourceAdapter):
-    name = "BBC"
-    seed_urls = ["https://www.bbc.co.uk/business"]
-    allowed_domains = list(BBC_DOMAINS)
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/128.0.0.0 Safari/537.36 (SEG301EducationalBot/1.0)"
-        ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9,vi;q=0.8",
-    }
-    max_depth = 3
-    max_pages = 100
-    request_timeout = 10
-    crawl_delay = 1.0
+    name = BBC_SETTINGS["name"]
+    seed_urls = BBC_SETTINGS["seed_urls"]
+    allowed_domains = BBC_SETTINGS["allowed_domains"]
+    headers = BBC_SETTINGS["headers"]
+    max_depth = BBC_SETTINGS["max_depth"]
+    max_pages = BBC_SETTINGS["max_pages"]
+    request_timeout = BBC_SETTINGS["request_timeout"]
+    crawl_delay = BBC_SETTINGS["crawl_delay"]
 
     def is_allowed_url(self, url: str) -> bool:
         return is_crawlable_bbc_url(url)

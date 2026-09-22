@@ -10,17 +10,18 @@ from sources.base import SourceAdapter
 
 
 class VnExpressSource(SourceAdapter):
-    name = "VnExpress"
-    seed_urls = config.SEED_URLS
-    allowed_domains = config.ALLOWED_DOMAINS
-    headers = config.DEFAULT_HEADERS
-    max_depth = config.MAX_DEPTH
-    max_pages = config.MAX_PAGES
-    request_timeout = config.REQUEST_TIMEOUT
-    crawl_delay = config.CRAWL_DELAY
-    ignored_extensions = config.IGNORED_EXTENSIONS
-    ignored_schemes = config.IGNORED_SCHEMES
-    ignored_paths = config.IGNORED_PATHS
+    settings = config.SOURCE_CONFIGS["vnexpress"]
+    name = settings["name"]
+    seed_urls = settings["seed_urls"]
+    allowed_domains = settings["allowed_domains"]
+    headers = settings["headers"]
+    max_depth = settings["max_depth"]
+    max_pages = settings["max_pages"]
+    request_timeout = settings["request_timeout"]
+    crawl_delay = settings["crawl_delay"]
+    ignored_extensions = settings["ignored_extensions"]
+    ignored_schemes = settings["ignored_schemes"]
+    ignored_paths = settings["ignored_paths"]
 
     def is_allowed_url(self, url: str) -> bool:
         parsed = urlparse(url)
@@ -49,5 +50,5 @@ class VnExpressSource(SourceAdapter):
             ignored_extensions=self.ignored_extensions,
             ignored_schemes=self.ignored_schemes,
             ignored_paths=self.ignored_paths,
-            articles_only=config.ARTICLES_ONLY,
+            articles_only=self.settings["articles_only"],
         )

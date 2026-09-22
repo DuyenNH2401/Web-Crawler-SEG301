@@ -12,12 +12,6 @@ import parser
 from sources.base import SourceAdapter
 
 
-SEED_URLS = ["https://edition.cnn.com/health"]
-ALLOWED_DOMAINS = ["edition.cnn.com"]
-MAX_DEPTH = 3
-MAX_PAGES = 100
-REQUEST_TIMEOUT = 10
-CRAWL_DELAY = 1.0
 URL_PATTERN = re.compile(
     r"^https://edition\.cnn\.com/\d{4}/\d{2}/\d{2}/health/[\w-]+$"
 )
@@ -40,24 +34,18 @@ def remove_excluded_elements(html_content: str, excluded_classes: List[str]) -> 
 
 
 class CNNSource(SourceAdapter):
-    name = "CNN"
-    seed_urls = SEED_URLS
-    allowed_domains = ALLOWED_DOMAINS
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/128.0.0.0 Safari/537.36 (SEG301EducationalBot/1.0)"
-        ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9,vi;q=0.8",
-    }
-    max_depth = MAX_DEPTH
-    max_pages = MAX_PAGES
-    request_timeout = REQUEST_TIMEOUT
-    crawl_delay = CRAWL_DELAY
-    ignored_extensions = config.IGNORED_EXTENSIONS
-    ignored_schemes = config.IGNORED_SCHEMES
-    ignored_paths = config.IGNORED_PATHS
+    settings = config.SOURCE_CONFIGS["cnn"]
+    name = settings["name"]
+    seed_urls = settings["seed_urls"]
+    allowed_domains = settings["allowed_domains"]
+    headers = settings["headers"]
+    max_depth = settings["max_depth"]
+    max_pages = settings["max_pages"]
+    request_timeout = settings["request_timeout"]
+    crawl_delay = settings["crawl_delay"]
+    ignored_extensions = settings["ignored_extensions"]
+    ignored_schemes = settings["ignored_schemes"]
+    ignored_paths = settings["ignored_paths"]
 
     def prepare_html(self, html_content: str) -> str:
         return remove_excluded_elements(html_content, EXCLUDED_CSS_CLASSES)
