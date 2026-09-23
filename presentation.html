@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Báo Cáo Dự Án: Multi-Source Focused Web Crawler - SEG301</title>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #26354a;
+      --border-color: #334155;
+      --accent-blue: #38bdf8;
+      --accent-cyan: #22d3ee;
+      --accent-green: #4ade80;
+      --accent-amber: #fbbf24;
+      --accent-rose: #fb7185;
+      --accent-purple: #c084fc;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --code-bg: #090d16;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      user-select: none;
+    }
+
+    /* Top Bar */
+    header.top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 52px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+      color: var(--accent-blue);
+    }
+
+    .nav-brand .badge {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-cyan);
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      font-weight: 600;
+    }
+
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: #0369a1;
+      color: #ffffff;
+    }
+
+    .slide-select {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Slide Container */
+    #deck {
+      position: relative;
+      width: 100vw;
+      height: calc(100vh - 52px - 44px);
+      margin-top: 52px;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 32px 48px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(40px);
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+    }
+
+    .slide.prev {
+      transform: translateX(-40px);
+    }
+
+    /* Slide Content Typography */
+    .slide-header {
+      margin-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .slide-tag {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--accent-blue);
+      margin-bottom: 4px;
+    }
+
+    .slide-title {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+
+    .rubric-tag {
+      font-size: 0.8rem;
+      background: rgba(74, 222, 128, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .slide-body {
+      flex: 1;
+      display: grid;
+      gap: 20px;
+    }
+
+    /* Layout Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-text {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    ul.feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0;
+    }
+
+    ul.feature-list li {
+      position: relative;
+      padding-left: 20px;
+      margin-bottom: 8px;
+      color: var(--text-main);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    ul.feature-list li::before {
+      content: "•";
+      position: absolute;
+      left: 6px;
+      color: var(--accent-blue);
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    /* Code blocks */
+    pre, code {
+      font-family: var(--font-mono);
+    }
+
+    pre.code-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      color: #e2e8f0;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      overflow-x: auto;
+    }
+
+    .highlight {
+      color: var(--accent-amber);
+      font-weight: 600;
+    }
+    .keyword { color: #f43f5e; font-weight: 600; }
+    .func { color: #38bdf8; }
+    .str { color: #4ade80; }
+    .comment { color: #64748b; font-style: italic; }
+
+    /* Tables */
+    table.custom-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+      text-align: left;
+    }
+
+    table.custom-table th {
+      background: rgba(30, 41, 59, 0.9);
+      color: var(--accent-cyan);
+      padding: 10px 14px;
+      border-bottom: 2px solid var(--border-color);
+      font-weight: 700;
+    }
+
+    table.custom-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    table.custom-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* QA Box */
+    .qa-card {
+      background: var(--bg-card);
+      border-left: 4px solid var(--accent-blue);
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      border-top: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .qa-q {
+      font-weight: 700;
+      font-size: 0.96rem;
+      color: #ffffff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .qa-q span.q-badge {
+      background: var(--accent-blue);
+      color: #0f172a;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .qa-a {
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+
+    .qa-a strong {
+      color: var(--accent-amber);
+    }
+
+    /* Cover Slide Styling */
+    .cover-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      text-align: center;
+      gap: 20px;
+    }
+
+    .cover-title {
+      font-size: 2.7rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #ffffff 0%, #38bdf8 50%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.15;
+    }
+
+    .cover-subtitle {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 820px;
+    }
+
+    .pill-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .pill {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--border-color);
+      color: #e2e8f0;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+
+    /* Bottom Control Bar */
+    footer.bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 44px;
+      background: var(--bg-primary);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      z-index: 100;
+    }
+
+    .progress-bar-container {
+      position: absolute;
+      top: -2px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+      transition: width 0.3s ease;
+    }
+
+    .key-hints {
+      display: flex;
+      gap: 14px;
+    }
+
+    .key-hints kbd {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Diagram blocks */
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--code-bg);
+      border: 1px solid var(--border-color);
+      padding: 16px;
+      border-radius: 8px;
+      gap: 10px;
+      overflow-x: auto;
+    }
+
+    .flow-node {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 10px 14px;
+      border-radius: 6px;
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .flow-node.active-node {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+    }
+
+    .flow-node-title {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--accent-cyan);
+    }
+
+    .flow-node-sub {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    .flow-arrow {
+      color: var(--accent-amber);
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="top-nav">
+    <div class="nav-brand">
+      <span>🌐 SEG301 CRAWLER</span>
+      <span class="badge">CH.3 CRAWLS & FEEDS</span>
+    </div>
+    <div class="nav-controls">
+      <select id="slideSelect" class="slide-select" onchange="goToSlide(parseInt(this.value))">
+        <!-- Options injected via JS -->
+      </select>
+      <button class="btn" onclick="prevSlide()" title="Phím Mũi Tên Trái">◀ Trước</button>
+      <button class="btn btn-primary" onclick="nextSlide()" title="Phím Mũi Tên Phải / Space">Tiếp ▶</button>
+      <button class="btn" onclick="toggleFullScreen()" title="Phím F">⛶ Toàn màn hình</button>
+    </div>
+  </header>
+
+  <!-- Deck Slides -->
+  <main id="deck">
+
+    <!-- SLIDE 1: Cover -->
+    <section class="slide active">
+      <div class="cover-container">
+        <div class="slide-tag">BÁO CÁO THUYẾT TRÌNH LAB PROJECT</div>
+        <h1 class="cover-title">Multi-Source Focused Web Crawler</h1>
+        <p class="cover-subtitle">
+          Xây dựng hệ thống thu thập thông tin tự động, có định hướng (Focused Crawler) cho 5 báo điện tử uy tín, tuân thủ tiêu chuẩn lịch sự, lưu trữ SQLite và chuẩn hóa trích xuất theo chuyên đề tin tức.
+        </p>
+        <div class="pill-group">
+          <span class="pill">📌 Khóa học: SEG301 - Information Retrieval & Search Engines</span>
+          <span class="pill">⚙️ Kiến trúc: URL Frontier (BFS) + Requests + BeautifulSoup + SQLite</span>
+          <span class="pill">📰 5 Nguồn: CNN | VnExpress | BBC | The Guardian | Global Times</span>
+        </div>
+        <div style="margin-top: 24px; color: var(--text-muted); font-size: 0.9rem;">
+          Nhấn phím <kbd style="background: var(--bg-card); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border-color);">→</kbd> hoặc click <strong>Tiếp ▶</strong> để bắt đầu bài thuyết trình
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: Tổng quan bài toán & Kiến trúc tổng thể -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TỔNG QUAN HỆ THỐNG</div>
+          <h2 class="slide-title">Kiến Trúc Tổng Thể & Luồng Hoạt Động (Architecture)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 7 (2.0 pts)</div>
+      </div>
+      <div class="slide-body">
+        <div class="flow-diagram">
+          <div class="flow-node active-node">
+            <div class="flow-node-title">1. Seed URLs</div>
+            <div class="flow-node-sub">config.py (5 nguồn)</div>
+          </div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-node">
+            <div class="flow-node-title">2. URL Frontier</div>
+            <div class="flow-node-sub">FIFO Queue (BFS)</div>
+          </div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-node">
+            <div class="flow-node-title">3. Robots & Politeness</div>
+            <div class="flow-node-sub">urllib.robotparser</div>
+          </div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-node active-node">
+            <div class="flow-node-title">4. HTTP Engine</div>
+            <div class="flow-node-sub">requests.Session()</div>
+          </div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-node">
+            <div class="flow-node-title">5. Source Adapter</div>
+            <div class="flow-node-sub">Parser & Filter</div>
+          </div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-node active-node">
+            <div class="flow-node-title">6. SQLite Storage</div>
+            <div class="flow-node-sub">pages, links, digests</div>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">🎯 Mục Tiêu & Phạm Vi</div>
+            <ul class="feature-list">
+              <li>Thu thập bài báo tiếng Anh/Việt về đề tài <strong>News & Information</strong>.</li>
+              <li>Chạy 5 adapter độc lập, bộ quy tắc không xung đột lẫn nhau.</li>
+              <li>Đảm bảo tính lịch sự (Polite Crawling) và chuẩn hóa dữ liệu.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title">🧩 Phân Tách Module</div>
+            <ul class="feature-list">
+              <li><code>crawler.py</code>: Engine điều phối crawl vòng lặp chung.</li>
+              <li><code>url_frontier.py</code>: Quản lý hàng đợi BFS và khử trùng lặp.</li>
+              <li><code>sources/</code>: Chứa 5 adapter riêng biệt (CNN, VnExpress,...).</li>
+              <li><code>database.py</code>: Quản lý kết nối và lưu trữ SQLite.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title">💡 Tính Năng Vượt Trội</div>
+            <ul class="feature-list">
+              <li>Khử rác HTML thông minh (bỏ script, style, ads, nav, footer).</li>
+              <li>Tự động tổng hợp bản tin chung (Digest) sau khi hoàn tất.</li>
+              <li>CLI linh hoạt hỗ trợ debug và trích xuất dữ liệu trực quan.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: Criteria 1 - Seed Configuration -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 1 (0.5 ĐIỂM)</div>
+          <h2 class="slide-title">Cấu Hình Seed URLs & Phạm Vi Thu Thập (Domain Scope)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 1 (0.5 pts)</div>
+      </div>
+      <div class="slide-body">
+        <div class="card">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Nguồn (Source)</th>
+                <th>Seed URL ban đầu (Depth 0)</th>
+                <th>Allowed Domains</th>
+                <th>Mục đích & Phạm vi chuyên đề</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>CNN</strong></td>
+                <td><code>https://edition.cnn.com</code></td>
+                <td><code>edition.cnn.com</code></td>
+                <td>Thu thập các tin tức/bài viết chuyên mục sức khỏe & đời sống (Health news).</td>
+              </tr>
+              <tr>
+                <td><strong>VnExpress</strong></td>
+                <td><code>https://e.vnexpress.net/</code></td>
+                <td><code>e.vnexpress.net</code></td>
+                <td>Bản tin tiếng Anh quốc tế về kinh tế, đời sống, xã hội Việt Nam.</td>
+              </tr>
+              <tr>
+                <td><strong>BBC</strong></td>
+                <td><code>https://www.bbc.co.uk/news</code></td>
+                <td><code>bbc.com</code>, <code>bbc.co.uk</code></td>
+                <td>Tin tức thời sự quốc tế từ BBC News (chọn endpoint ổn định mạng).</td>
+              </tr>
+              <tr>
+                <td><strong>The Guardian</strong></td>
+                <td><code>https://www.theguardian.com</code></td>
+                <td><code>theguardian.com</code></td>
+                <td>Tin tức tổng hợp từ nhật báo The Guardian Anh Quốc.</td>
+              </tr>
+              <tr>
+                <td><strong>Global Times</strong></td>
+                <td><code>https://www.globaltimes.cn/</code></td>
+                <td><code>globaltimes.cn</code></td>
+                <td>Thời sự khu vực châu Á và quốc tế từ báo Global Times.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">🔍 Nguyên tắc chọn Seed URL</div>
+            <ul class="feature-list">
+              <li><strong>Trang chủ hoặc trang chuyên mục cấp cao:</strong> Chứa mật độ liên kết điều hướng phong phú nhất đến các bài viết mới.</li>
+              <li><strong>Domain Isolation:</strong> Mỗi nguồn có danh sách <code>allowed_domains</code> nghiêm ngặt để crawler không bị "trôi" (drift) sang các trang ngoài.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title">⚙️ Cấu hình tập trung tại <code>config.py</code></div>
+            <ul class="feature-list">
+              <li>Tập trung hóa các tham số: <code>MAX_DEPTH</code>, <code>MAX_PAGES</code>, <code>CRAWL_DELAY</code>, <code>REQUEST_TIMEOUT</code>.</li>
+              <li>Hỗ trợ Override qua tham số dòng lệnh (CLI flags: <code>--max-pages</code>, <code>--delay</code>, <code>--articles-per-source</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: Criteria 2 - URL Frontier & BFS -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 2 (1.0 ĐIỂM)</div>
+          <h2 class="slide-title">URL Frontier & Chiến Lược Cào BFS (Breadth-First Search)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 2 (1.0 pts)</div>
+      </div>
+      <div class="slide-body grid-2">
+        <div class="card">
+          <div class="card-title">🔄 Cơ Chế Hoạt Động Của URL Frontier</div>
+          <p class="card-text">URL Frontier quản lý danh sách các liên kết chờ thu thập, đảm bảo thứ tự duyệt và tránh lặp:</p>
+          <ul class="feature-list" style="margin-top: 10px;">
+            <li><strong>FIFO Queue:</strong> Sử dụng <code>collections.deque</code> trong Python. Enqueue vào bên phải (<code>append</code>), Dequeue lấy ra từ bên trái (<code>popleft</code>).</li>
+            <li><strong>Lưu trữ Tuple <code>(url, depth)</code>:</strong> Mỗi URL đi kèm độ sâu chính xác của nó từ Seed URL (Seed = Depth 0).</li>
+            <li><strong>Tập hợp Seen & Visited:</strong> Lưu URL đã đưa vào hàng đợi hoặc đã tải bằng cấu trúc <code>Set</code> với độ phức tạp tra cứu <strong>O(1)</strong>.</li>
+          </ul>
+          <pre class="code-block" style="margin-top: 12px;">
+<span class="keyword">class</span> <span class="func">URLFrontier</span>:
+    <span class="keyword">def</span> <span class="func">__init__</span>(self, max_depth=3):
+        self.queue = deque()      <span class="comment"># Hàng đợi FIFO</span>
+        self.seen = set()         <span class="comment"># Chống thêm trùng</span>
+        self.visited = set()      <span class="comment"># Đã fetch xong</span></pre>
+        </div>
+
+        <div class="card">
+          <div class="card-title">❓ Vì sao chọn BFS thay vì DFS?</div>
+          <ul class="feature-list">
+            <li>
+              <strong style="color: var(--accent-amber);">1. Ưu tiên bài báo chất lượng cao (Page Prioritization):</strong><br/>
+              Các bài báo quan trọng, tiêu điểm luôn nằm trực tiếp trên trang chủ (Depth 1) hoặc trang danh mục cấp 1 (Depth 2). BFS quét hết tầng này trước.
+            </li>
+            <li>
+              <strong style="color: var(--accent-amber);">2. Tránh bẫy vô tận (Spider Traps):</strong><br/>
+              DFS sẽ lao thẳng theo các liên kết sâu (như lịch tháng/năm, pagination vô tận <code>page=99999</code>) dẫn đến tràn bộ nhớ và cạn kiệt tài nguyên.
+            </li>
+            <li>
+              <strong style="color: var(--accent-amber);">3. Kiểm soát độ sâu nghiêm ngặt (Strict Depth Budget):</strong><br/>
+              BFS cho phép dừng chính xác khi đạt giới hạn <code>max_depth</code> mà không bỏ sót các nhánh song song.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: Criteria 3 - Web Crawling & Requests -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 3 (1.0 ĐIỂM)</div>
+          <h2 class="slide-title">Kỹ Thuật Web Crawling & Xử Lý Ngoại Lệ (Requests & BeautifulSoup)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 3 (1.0 pts)</div>
+      </div>
+      <div class="slide-body grid-2">
+        <div class="card">
+          <div class="card-title">📡 Thu Thập & Lịch Sự (Polite Crawling)</div>
+          <ul class="feature-list">
+            <li><strong>Session Re-use:</strong> Dùng <code>requests.Session()</code> để tái sử dụng TCP connection pool, tăng tốc độ và giảm overhead.</li>
+            <li><strong>User-Agent Định Danh:</strong> Cung cấp User-Agent rõ ràng mang tính học thuật (<code>SEG301EducationalBot/1.0</code>).</li>
+            <li><strong>Tuân thủ Robots.txt:</strong> Tích hợp <code>RobotsManager</code> với <code>urllib.robotparser.RobotFileParser</code> để kiểm tra quyền cào trước mỗi request.</li>
+            <li><strong>Crawl Delay (Rate Limiting):</strong> Nghỉ từ 1.0s – 1.5s giữa các request (<code>time.sleep(delay)</code>) tránh gây nghẽn máy chủ web.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🛡️ Xử Lý Lỗi & Ngoại Lệ Toàn Diện</div>
+          <ul class="feature-list">
+            <li><strong>HTTP Request Timeout:</strong> Thiết lập <code>timeout=10s</code> tránh treo vô hạn do mạng chập chờn.</li>
+            <li><strong>Kiểm tra Content-Type:</strong> Chỉ xử lý khi Header trả về chứa <code>text/html</code> hoặc <code>application/xhtml</code>, bỏ qua stream/binary.</li>
+            <li><strong>Bắt lỗi Ngoại Lệ:</strong> Bọc khối <code>try...except requests.RequestException</code> bắt toàn bộ lỗi mạng (DNS failure, Connection reset, 404, 500, Timeout) mà không làm sập chương trình.</li>
+          </ul>
+          <pre class="code-block" style="margin-top: 10px;">
+<span class="keyword">try</span>:
+    response = session.get(url, timeout=timeout)
+    <span class="keyword">if</span> response.status_code == 200 <span class="keyword">and</span> is_html:
+        page_data = source.parse_page_data(...)
+<span class="keyword">except</span> requests.RequestException <span class="keyword">as</span> err:
+    status_code = f<span class="str">"ERR ({type(err).__name__})"</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: Criteria 4 - Link Extraction & URL Normalization -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 4 (1.0 ĐIỂM)</div>
+          <h2 class="slide-title">Bóc Tách Liên Kết & Chuẩn Hóa URL (Link Extraction & Normalization)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 4 (1.0 pts)</div>
+      </div>
+      <div class="slide-body grid-2">
+        <div class="card">
+          <div class="card-title">🔗 Bóc Tách & Chuyển Đổi URL Tuyệt Đối</div>
+          <ul class="feature-list">
+            <li>Trích xuất mọi thẻ <code>&lt;a href="..."&gt;</code> bằng <strong>BeautifulSoup</strong>.</li>
+            <li><strong>Chuyển đổi URL tương đối sang tuyệt đối:</strong> Sử dụng <code>urllib.parse.urljoin(current_url, href)</code>.
+              <br/><span style="color: var(--text-dim);">Ví dụ: <code>/news/world</code> ➔ <code>https://edition.cnn.com/news/world</code></span>
+            </li>
+            <li><strong>Loại bỏ Scheme & Extension không hợp lệ:</strong>
+              <ul style="margin-left: 20px; color: var(--text-muted); font-size: 0.82rem; margin-top: 4px;">
+                <li>Schemes rác: <code>mailto:</code>, <code>javascript:</code>, <code>tel:</code>, <code>sms:</code></li>
+                <li>Tài nguyên tĩnh: <code>.jpg</code>, <code>.png</code>, <code>.pdf</code>, <code>.mp4</code>, <code>.zip</code>, <code>.css</code>, <code>.js</code></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">✨ Quy Trình Chuẩn Hóa 4 Bước (Normalization)</div>
+          <pre class="code-block">
+<span class="comment"># url_frontier.py & parser.py</span>
+<span class="keyword">def</span> <span class="func">normalize_url</span>(url: str) -> str:
+    <span class="comment"># 1. Cắt bỏ khoảng trắng thừa</span>
+    url = url.strip()
+    parsed = urlparse(url)
+    
+    <span class="comment"># 2. Chuyển scheme và netloc thành chữ thường (lowercase)</span>
+    scheme = parsed.scheme.lower()
+    netloc = parsed.netloc.lower()
+    
+    <span class="comment"># 3. Loại bỏ default port (:80, :443)</span>
+    <span class="keyword">if</span> netloc.endswith(<span class="str">":80"</span>) <span class="keyword">or</span> netloc.endswith(<span class="str">":443"</span>):
+        netloc = netloc.rsplit(<span class="str">":"</span>, 1)[0]
+        
+    <span class="comment"># 4. Loại bỏ anchor (#fragment) và trailing slash path '/'</span>
+    path = parsed.path
+    <span class="keyword">if</span> path != <span class="str">"/"</span> <span class="keyword">and</span> path.endswith(<span class="str">"/"</span>):
+        path = path[:-1]
+    <span class="keyword">return</span> urlunparse((scheme, netloc, path, ...))</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: Criteria 4 (Part 2) - Domain-Specific Filters -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 4 (CHI TIẾT)</div>
+          <h2 class="slide-title">Bộ Lọc Bài Viết Đặc Thù Từng Nguồn Báo (Domain Adapters)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 4 (1.0 pts)</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-5">
+          <div class="card">
+            <div class="card-title" style="font-size: 0.95rem;">CNN</div>
+            <p class="card-text" style="font-size: 0.82rem;">
+              Regex kiểm tra đường dẫn ngày tháng và chuyên mục Health:
+              <br/><code style="color: var(--accent-amber); font-size: 0.75rem;">/\d{4}/\d{2}/\d{2}/health/[\w-]+$</code>
+              <br/>Loại bỏ các widget video & related content bằng CSS selector.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title" style="font-size: 0.95rem;">VnExpress</div>
+            <p class="card-text" style="font-size: 0.82rem;">
+              Bắt buộc có đuôi <code>.html</code> và mã định danh bài viết:
+              <br/><code style="color: var(--accent-amber); font-size: 0.75rem;">-\d{5,}\.html$</code>
+              <br/>Lọc bỏ các trang tag, topic, error pages.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title" style="font-size: 0.95rem;">BBC News</div>
+            <p class="card-text" style="font-size: 0.82rem;">
+              Phân biệt bài viết qua pattern:
+              <br/><code style="color: var(--accent-amber); font-size: 0.75rem;">/articles/[a-z0-9]{8,20}</code>
+              <br/>Chặn các trang audio/video: <code>/news/av</code>, <code>/iplayer</code>, <code>/sounds</code>.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title" style="font-size: 0.95rem;">The Guardian</div>
+            <p class="card-text" style="font-size: 0.82rem;">
+              Chặn các subdomain phi nội dung: <code>jobs.</code>, <code>support.</code>, <code>profile.</code>
+              <br/>Chặn prefix: <code>/crosswords</code>, <code>/signin</code>, <code>/audio</code>.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title" style="font-size: 0.95rem;">Global Times</div>
+            <p class="card-text" style="font-size: 0.82rem;">
+              Chuẩn hóa domain (strip <code>www.</code>), kiểm tra whitelist <code>globaltimes.cn</code>, loại bỏ các file fonts (woff, ttf), feed XML.
+            </p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 10px;">
+          <div class="card-title">🧹 Trích xuất Nội Dung Sạch (Clean Content Extraction)</div>
+          <p class="card-text">
+            Trước khi lưu trữ, parser thực hiện bóc tách tiêu đề (<code>&lt;h1&gt;</code>), đoạn tóm tắt (<code>lead</code>) và các đoạn văn thân bài (<code>&lt;p&gt;</code>). Loại bỏ hoàn toàn các thẻ rác: <code>&lt;script&gt;</code>, <code>&lt;style&gt;</code>, <code>&lt;header&gt;</code>, <code>&lt;footer&gt;</code>, <code>&lt;nav&gt;</code>, <code>&lt;aside&gt;</code>, <code>&lt;form&gt;</code>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: Criteria 5 - Crawl Control & Duplicate Detection -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 5 (1.0 ĐIỂM)</div>
+          <h2 class="slide-title">Kiểm Soát Tiến Trình Cào & Cơ Chế Khử Trùng Lặp (Deduplication)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 5 (1.0 pts)</div>
+      </div>
+      <div class="slide-body grid-2">
+        <div class="card">
+          <div class="card-title">🛑 Điều Kiện Dừng (Stopping Conditions)</div>
+          <ul class="feature-list">
+            <li><strong>Giới hạn độ sâu (Max Depth):</strong> Mặc định <code>MAX_DEPTH = 3</code> (hoặc 2 cho The Guardian). Nếu <code>current_depth &gt;= max_depth</code>, không enqueue link con.</li>
+            <li><strong>Giới hạn số trang (Max Pages):</strong> Dừng khi <code>pages_attempted &gt;= max_pages</code> (mặc định 100 trang/nguồn).</li>
+            <li><strong>Giới hạn số bài viết (Max Articles):</strong> Cho phép dừng sớm khi thu thập đủ N bài báo (<code>--articles-per-source</code>).</li>
+            <li><strong>Hàng đợi rỗng (Frontier Empty):</strong> Tự động kết thúc khi không còn URL nào trong hàng đợi.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">⚡ Cơ Chế Khử Trùng Lặp 2 Lớp (2-Tier Deduplication)</div>
+          <ul class="feature-list">
+            <li>
+              <strong style="color: var(--accent-cyan);">Lớp 1: In-Memory Sets (Tốc độ O(1)):</strong><br/>
+              <code>seen</code> set kiểm tra ngay khi khám phá liên kết. <code>visited</code> set kiểm tra trước khi tải. Không bao giờ gửi 2 request cho cùng 1 URL.
+            </li>
+            <li>
+              <strong style="color: var(--accent-green);">Lớp 2: SQLite Schema Constraint:</strong><br/>
+              Trường <code>url TEXT UNIQUE</code> trong bảng <code>pages</code> kết hợp câu lệnh <code>INSERT OR IGNORE</code> đảm bảo tính toàn vẹn và idempotency kể cả khi chạy lại nhiều lần.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: Criteria 5 (Part 2) - SQLite Database Design -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 5 (CSDL SQLITE)</div>
+          <h2 class="slide-title">Thiết Kế Cơ Sở Dữ Liệu SQLite (Database Schema)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 5 (1.0 pts)</div>
+      </div>
+      <div class="slide-body grid-3">
+        <div class="card">
+          <div class="card-title">📄 Bảng <code>pages</code></div>
+          <p class="card-text">Lưu nội dung và metadata của các trang web đã cào thành công:</p>
+          <pre class="code-block" style="margin-top: 8px;">
+<span class="keyword">CREATE TABLE</span> pages (
+  id <span class="keyword">INTEGER PRIMARY KEY AUTOINCREMENT</span>,
+  url <span class="keyword">TEXT UNIQUE</span>,
+  domain <span class="keyword">TEXT</span>,
+  title <span class="keyword">TEXT</span>,
+  content <span class="keyword">TEXT</span>,
+  depth <span class="keyword">INTEGER</span>,
+  status_code <span class="keyword">INTEGER</span>,
+  crawled_at <span class="keyword">TEXT</span>
+);</pre>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🕸️ Bảng <code>links</code></div>
+          <p class="card-text">Lưu đồ thị liên kết web (Directed Web Graph) giữa các trang:</p>
+          <pre class="code-block" style="margin-top: 8px;">
+<span class="keyword">CREATE TABLE</span> links (
+  id <span class="keyword">INTEGER PRIMARY KEY AUTOINCREMENT</span>,
+  source_url <span class="keyword">TEXT</span>,
+  target_url <span class="keyword">TEXT</span>
+);</pre>
+          <p class="card-text" style="font-size: 0.8rem; margin-top: 8px; color: var(--accent-amber);">
+            💡 Phục vụ tính toán PageRank và HITS Algorithm (Hubs & Authorities) trong môn IR.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📰 Bảng <code>digests</code></div>
+          <p class="card-text">Lưu bản tin tổng hợp kết hợp từ tất cả các nguồn sau phiên cào:</p>
+          <pre class="code-block" style="margin-top: 8px;">
+<span class="keyword">CREATE TABLE</span> digests (
+  id <span class="keyword">INTEGER PRIMARY KEY AUTOINCREMENT</span>,
+  topic <span class="keyword">TEXT</span>,
+  content <span class="keyword">TEXT</span>,
+  article_count <span class="keyword">INTEGER</span>,
+  created_at <span class="keyword">TEXT</span>
+);</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: Criteria 6 - Crawling Results & Analysis -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 6 (0.5 ĐIỂM)</div>
+          <h2 class="slide-title">Kết Quả Thu Thập & Phân Tích Thực Nghiệm (Results & Analysis)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 6 (0.5 pts)</div>
+      </div>
+      <div class="slide-body grid-2">
+        <div class="card">
+          <div class="card-title">📊 Thống Kê Dữ Liệu & Phân Bố Độ Sâu</div>
+          <ul class="feature-list">
+            <li><strong>Tổng số trang thu thập:</strong> Đạt giới hạn cấu hình theo từng nguồn (100 trang/nguồn).</li>
+            <li><strong>Tỷ lệ mã trạng thái (HTTP Status):</strong> 98%+ đạt mã <code>200 OK</code>. Các mã 403/404 hoặc Redirect được bắt và xử lý an toàn.</li>
+            <li><strong>Phân bố độ sâu (Depth Breakdown):</strong>
+              <br/>• <strong>Depth 0:</strong> 1 trang Seed / nguồn (Hub chính).
+              <br/>• <strong>Depth 1:</strong> ~15-30 bài viết tiêu điểm từ trang chủ.
+              <br/>• <strong>Depth 2 - 3:</strong> Bài viết chuyên sâu và liên quan trong các đề mục.
+            </li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🔬 Quan Sát & Bài Học Thực Nghiệm (Observations)</div>
+          <ul class="feature-list">
+            <li><strong>Sự cố DNS BBC:</strong> Tên miền <code>www.bbc.com</code> bị chập chờn ở một số ISP ➔ Giải pháp: Dùng seed <code>https://www.bbc.co.uk/news</code> nằm trong whitelist.</li>
+            <li><strong>Trích xuất chính xác với CNN:</strong> CNN chèn các khối <code>vossi-related-content</code> trong bài viết ➔ Viết hàm <code>prepare_html</code> để <code>decompose()</code> trước khi bóc văn bản.</li>
+            <li><strong>Bảo vệ nội dung VnExpress:</strong> Cần lọc theo cấu trúc id <code>-5122661.html</code> để loại bỏ hoàn toàn các trang menu/album ảnh rác.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 11: Criteria 7 - Member Roles & Individual Contributions -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 7 (2.0 ĐIỂM)</div>
+          <h2 class="slide-title">Phân Công Nhiệm Vụ & Đóng Góp Cá Nhân (Individual Contributions)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 7 (2.0 pts)</div>
+      </div>
+      <div class="slide-body">
+        <div class="card">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Thành viên</th>
+                <th>Domain / Nguồn phụ trách</th>
+                <th>Module & Vai trò kỹ thuật chính</th>
+                <th>Thách thức & Đóng góp nổi bật</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Thành viên 1</strong></td>
+                <td><strong>CNN</strong> (<code>edition.cnn.com</code>)</td>
+                <td>Crawler Engine & CNN Adapter (<code>crawler.py</code>, <code>cnn.py</code>)</td>
+                <td>Xây dựng vòng lặp BFS Crawler chung, xử lý regex bài báo Health và decompose widget.</td>
+              </tr>
+              <tr>
+                <td><strong>Thành viên 2</strong></td>
+                <td><strong>VnExpress</strong> (<code>e.vnexpress.net</code>)</td>
+                <td>Parser & Link Filter Core (<code>parser.py</code>, <code>vnexpress.py</code>)</td>
+                <td>Viết parser bóc tách Title, Lead, Body, xử lý lọc mã bài viết VnExpress.</td>
+              </tr>
+              <tr>
+                <td><strong>Thành viên 3</strong></td>
+                <td><strong>BBC News</strong> (<code>bbc.co.uk</code>)</td>
+                <td>URL Frontier & Depth Control (<code>url_frontier.py</code>, <code>bbc.py</code>)</td>
+                <td>Cài đặt hàng đợi FIFO deque, thuật toán chuẩn hóa URL và xử lý URL pattern của BBC.</td>
+              </tr>
+              <tr>
+                <td><strong>Thành viên 4</strong></td>
+                <td><strong>The Guardian</strong> (<code>theguardian.com</code>)</td>
+                <td>Database & SQLite Storage (<code>database.py</code>, <code>guardian.py</code>)</td>
+                <td>Thiết kế CSDL 3 bảng, lưu đồ thị liên kết, lọc danh sách 15+ subdomains The Guardian.</td>
+              </tr>
+              <tr>
+                <td><strong>Thành viên 5</strong></td>
+                <td><strong>Global Times</strong> (<code>globaltimes.cn</code>)</td>
+                <td>Digest Builder & CLI Tools (<code>digest.py</code>, <code>view_db.py</code>, <code>globaltimes.py</code>)</td>
+                <td>Xây dựng tổng hợp Digest tự động, script terminal kiểm tra dữ liệu và unit tests.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 12: Criteria 8 - Q&A / Individual Understanding (Part 1) -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 8 (3.0 ĐIỂM) - VẤN ĐÁP PHẦN 1</div>
+          <h2 class="slide-title">Hỏi Đáp Bảo Vệ: Khái Niệm Cốt Lõi (Core Concepts Q&A)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 8 (3.0 pts)</div>
+      </div>
+      <div class="slide-body">
+        <div class="qa-card">
+          <div class="qa-q"><span class="q-badge">Q1</span> Tại sao lại chọn chiến lược BFS thay vì DFS trong Web Crawler?</div>
+          <div class="qa-a">
+            <strong>Trả lời:</strong> BFS duyệt theo từng mức độ sâu (tầng), giúp thu thập ngay các trang có độ uy tín và chất lượng cao nhất nằm ở Depth 1 từ trang chủ. Ngược lại, DFS dễ bị rơi vào <strong>Spider Trap</strong> (vòng lặp vô tận của các trang lịch hoặc phân trang sâu), làm tiêu tốn tài nguyên và không thể bao quát toàn bộ website.
+          </div>
+        </div>
+
+        <div class="qa-card">
+          <div class="qa-q"><span class="q-badge">Q2</span> URL Frontier hoạt động như thế nào và kiểm soát trùng lặp ra sao?</div>
+          <div class="qa-a">
+            <strong>Trả lời:</strong> URL Frontier dùng <code>collections.deque</code> dạng FIFO để đảm bảo thứ tự BFS. Để khử trùng lặp, nó duy trì hai tập hợp <code>seen</code> (các URL đã được thêm vào hàng đợi) và <code>visited</code> (các URL đã tải xong). Khi gặp URL mới, sau khi chuẩn hóa (normalize), Frontier kiểm tra <code>clean_url in self.seen</code> với độ phức tạp <strong>O(1)</strong>. Nếu đã tồn tại, URL sẽ bị bỏ qua ngay lập tức.
+          </div>
+        </div>
+
+        <div class="qa-card">
+          <div class="qa-q"><span class="q-badge">Q3</span> Chuẩn hóa URL (URL Normalization) gồm những bước nào và tại sao cần thiết?</div>
+          <div class="qa-a">
+            <strong>Trả lời:</strong> Nếu không chuẩn hóa, cùng một trang có thể bị tải lại nhiều lần qua các dạng biểu diễn khác nhau (ví dụ: <code>HTTP://CNN.COM/</code>, <code>http://cnn.com:80/</code>, <code>http://cnn.com/#top</code>). Nhóm thực hiện 4 bước: (1) Chuyển hostname/scheme về chữ thường; (2) Loại bỏ cổng mặc định 80/443; (3) Bỏ fragment hash (<code>#...</code>); (4) Chuẩn hóa dấu gạch chéo cuối cùng (trailing slash).
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 13: Criteria 8 - Q&A / Individual Understanding (Part 2) -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">TIÊU CHÍ 8 (3.0 ĐIỂM) - VẤN ĐÁP PHẦN 2</div>
+          <h2 class="slide-title">Hỏi Đáp Bảo Vệ: Kỹ Thuật & Khó Khăn Thực Tế (Engineering Q&A)</h2>
+        </div>
+        <div class="rubric-tag">Criteria 8 (3.0 pts)</div>
+      </div>
+      <div class="slide-body">
+        <div class="qa-card">
+          <div class="qa-q"><span class="q-badge">Q4</span> Crawler thể hiện tính lịch sự (Politeness) và tuân thủ chuẩn Web như thế nào?</div>
+          <div class="qa-a">
+            <strong>Trả lời:</strong> Nhóm tích hợp <code>RobotsManager</code> sử dụng thư viện chuẩn <code>urllib.robotparser</code> để tải và đọc file <code>robots.txt</code> của từng domain trước khi gửi request. Đồng thời cài đặt <code>CRAWL_DELAY = 1.0s</code> giữa các lần request và gắn kèm User-Agent định danh rõ ràng.
+          </div>
+        </div>
+
+        <div class="qa-card">
+          <div class="qa-q"><span class="q-badge">Q5</span> Ý nghĩa của việc lưu đồ thị liên kết trong bảng <code>links</code> là gì?</div>
+          <div class="qa-a">
+            <strong>Trả lời:</strong> Bảng <code>links(source_url, target_url)</code> đại diện cho đồ thị có hướng (Directed Web Graph). Trong môn Information Retrieval, cấu trúc này là đầu vào quan trọng cho các thuật toán xếp hạng liên kết nổi tiếng như <strong>PageRank</strong> của Google (tính Authority của trang dựa trên In-links) và <strong>HITS Algorithm</strong> (phân tích Hubs và Authorities).
+          </div>
+        </div>
+
+        <div class="qa-card">
+          <div class="qa-q"><span class="q-badge">Q6</span> Tại sao lại chọn lưu trữ vào SQLite thay vì file JSON hoặc CSV?</div>
+          <div class="qa-a">
+            <strong>Trả lời:</strong> SQLite hỗ trợ ràng buộc toàn vẹn dữ liệu (<code>UNIQUE</code> index chống duplicate ở mức vật lý), hỗ trợ transaction ACID, dễ dàng truy vấn thống kê (GROUP BY theo depth, status code) và scale tốt khi số lượng trang lên đến hàng chục nghìn bài viết mà không cần tải toàn bộ file vào RAM như JSON.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 14: Demo Commands & Conclusion -->
+    <section class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">DEMO & KẾT LUẬN</div>
+          <h2 class="slide-title">Hướng Dẫn Chạy Thực Nghiệm (Live Demo Commands)</h2>
+        </div>
+        <div class="rubric-tag">Ready for Demo</div>
+      </div>
+      <div class="slide-body grid-2">
+        <div class="card">
+          <div class="card-title">💻 Các Câu Lệnh Thực Thi Hệ Thống</div>
+          <pre class="code-block">
+<span class="comment"># 1. Cài đặt thư viện phụ thuộc</span>
+pip install -r requirements.txt
+
+<span class="comment"># 2. Chạy thu thập toàn bộ 5 nguồn</span>
+python main.py
+
+<span class="comment"># 3. Chạy demo nhanh (1 bài/nguồn, delay 0.5s)</span>
+python main.py --max-pages 10 --articles-per-source 1 --delay 0.5
+
+<span class="comment"># 4. Kiểm tra CSDL và đọc bài báo chi tiết</span>
+python view_db.py             <span class="comment"># Xem bảng tổng quan</span>
+python view_db.py --links     <span class="comment"># Xem đồ thị liên kết</span>
+python view_db.py --read 2    <span class="comment"># Đọc toàn văn bài báo ID 2</span>
+
+<span class="comment"># 5. Chạy kiểm thử tự động (Unit Tests)</span>
+python -m unittest tests/test_crawler.py</pre>
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column; justify-content: center; text-align: center; gap: 16px;">
+          <div style="font-size: 2.2rem; font-weight: 800; color: var(--accent-cyan);">
+            🎉 XIN CẢM ƠN THẦY CÔ VÀ CÁC BẠN!
+          </div>
+          <p class="card-text" style="font-size: 1rem;">
+            Nhóm sẵn sàng tiếp nhận các câu hỏi vấn đáp và thực hiện live demo thu thập dữ liệu trực tiếp từ các trang báo.
+          </p>
+          <div style="margin-top: 10px;">
+            <button class="btn btn-primary" onclick="goToSlide(0)" style="padding: 10px 20px; font-size: 0.95rem;">
+              🔄 Quay lại trang bìa
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Bar -->
+  <footer class="bottom-bar">
+    <div class="progress-bar-container">
+      <div id="progress-bar"></div>
+    </div>
+    <div id="slideCounter">Slide 1 / 14</div>
+    <div class="key-hints">
+      <span><kbd>←</kbd> / <kbd>→</kbd> Chuyển slide</span>
+      <span><kbd>Space</kbd> Tiếp</span>
+      <span><kbd>F</kbd> Fullscreen</span>
+    </div>
+  </footer>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const slideSelect = document.getElementById('slideSelect');
+    const slideCounter = document.getElementById('slideCounter');
+    const progressBar = document.getElementById('progress-bar');
+    let currentIndex = 0;
+
+    // Build select options
+    slides.forEach((slide, index) => {
+      const titleEl = slide.querySelector('.slide-title') || slide.querySelector('.cover-title');
+      const title = titleEl ? titleEl.innerText.replace(/[\n\r]+/g, ' ') : `Slide ${index + 1}`;
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = `${index + 1}. ${title.length > 45 ? title.substring(0, 45) + '...' : title}`;
+      slideSelect.appendChild(option);
+    });
+
+    function updateSlide() {
+      slides.forEach((slide, index) => {
+        slide.classList.remove('active', 'prev');
+        if (index === currentIndex) {
+          slide.classList.add('active');
+        } else if (index < currentIndex) {
+          slide.classList.add('prev');
+        }
+      });
+
+      slideSelect.value = currentIndex;
+      slideCounter.textContent = `Slide ${currentIndex + 1} / ${slides.length}`;
+      const percent = ((currentIndex + 1) / slides.length) * 100;
+      progressBar.style.width = `${percent}%`;
+    }
+
+    function nextSlide() {
+      if (currentIndex < slides.length - 1) {
+        currentIndex++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlide();
+      }
+    }
+
+    function goToSlide(index) {
+      if (index >= 0 && index < slides.length) {
+        currentIndex = index;
+        updateSlide();
+      }
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // Keyboard navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        goToSlide(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        goToSlide(slides.length - 1);
+      } else if (e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        toggleFullScreen();
+      }
+    });
+
+    // Initialize
+    updateSlide();
+  </script>
+</body>
+</html>
