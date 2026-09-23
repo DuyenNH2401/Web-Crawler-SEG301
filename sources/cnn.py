@@ -13,13 +13,18 @@ from sources.base import SourceAdapter
 
 
 URL_PATTERN = re.compile(
-    r"^https://edition\.cnn\.com/\d{4}/\d{2}/\d{2}/health/[\w-]+$"
+    r"^https://edition\.cnn\.com/\d{4}/\d{2}/\d{2}/health/[\w/-]+(?:\.html)?$"
 )
 EXCLUDED_CSS_CLASSES = ["vossi-related-content_elevate__body"]
 
 
 def is_cnn_health_article(url: str) -> bool:
     return bool(URL_PATTERN.match(url.rstrip("/")))
+
+
+def is_cnn_health_section(url: str) -> bool:
+    parsed = urlparse(url)
+    return parsed.netloc.lower() == "edition.cnn.com" and parsed.path.lower().startswith("/health")
 
 
 def remove_excluded_elements(html_content: str, excluded_classes: List[str]) -> str:
@@ -53,7 +58,7 @@ class CNNSource(SourceAdapter):
     def is_allowed_url(self, url: str) -> bool:
         parsed = urlparse(url)
         path = parsed.path.lower()
-        return (
+        if not (
             parsed.scheme.lower() in ("http", "https")
             and parser.is_domain_allowed(parsed.netloc, self.allowed_domains)
             and not any(path.endswith(ext) for ext in self.ignored_extensions)
@@ -61,7 +66,9 @@ class CNNSource(SourceAdapter):
                 path == ignored or path.startswith(ignored)
                 for ignored in self.ignored_paths
             )
-        )
+        ):
+            return False
+        return is_cnn_health_article(url) or is_cnn_health_section(url)
 
     def is_article_candidate(self, url: str, depth: int, html_content: str) -> bool:
         return is_cnn_health_article(url)
@@ -70,9 +77,6 @@ class CNNSource(SourceAdapter):
         return parser.parse_page_data(html_content, url, depth, status_code)
 
     def extract_links(self, html_content: str, current_url: str):
-        # The original CNN branch temporarily replaced parser.is_article_url.
-        # Filtering after the original generic rules preserves the same result
-        # without changing shared parser state.
         candidates = parser.extract_and_filter_links(
             html_content=html_content,
             current_url=current_url,
@@ -82,4 +86,4 @@ class CNNSource(SourceAdapter):
             ignored_paths=self.ignored_paths,
             articles_only=False,
         )
-        return [url for url in candidates if is_cnn_health_article(url)]
+        return [url for url in candidates if is_cnn_health_article(url) or is_cnn_health_section(url)]

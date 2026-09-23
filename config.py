@@ -13,7 +13,7 @@ TOPIC = "News & Information"
 # Seed URLs for each source.
 SEED_URLS = {
     "vnexpress": ["https://e.vnexpress.net/"],
-    "cnn": ["https://edition.cnn.com"],
+    "cnn": ["https://edition.cnn.com/health"],
     # www.bbc.com does not resolve on some networks; the UK News endpoint serves
     # the same crawlable BBC article URLs and is already in the domain allowlist.
     "bbc": ["https://www.bbc.co.uk/news"],

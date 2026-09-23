@@ -9,7 +9,17 @@ Usage:
 import argparse
 import os
 import sqlite3
+import sys
 import textwrap
+
+# Fix encoding on Windows terminal
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from config import DB_PATH
 
 def inspect_db(show_all=False, show_links=False, read_id=None):
