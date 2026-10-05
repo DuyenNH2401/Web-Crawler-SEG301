@@ -1,0 +1,4 @@
+;/*FB_PKG_DELIM*/
+
+__d("BarcelonaOrganicRepostBottomSheetImpressionFalcoEvent",["FalcoLoggerInternal","getFalcoLogPolicy_DO_NOT_USE"],(function(t,n,r,o,a,i,l){"use strict";var e=r("getFalcoLogPolicy_DO_NOT_USE")("5520"),s=o("FalcoLoggerInternal").create("barcelona_organic_repost_bottom_sheet_impression",e),u=s;l.default=u}),98);
+__d("BarcelonaOrganicRepostTapFalcoEvent",["FalcoLoggerInternal","getFalcoLogPolicy_DO_NOT_USE"],(function(t,n,r,o,a,i,l){"use strict";var e=r("getFalcoLogPolicy_DO_NOT_USE")("5521"),s=o("FalcoLoggerInternal").create("barcelona_organic_repost_tap",e),u=s;l.default=u}),98);

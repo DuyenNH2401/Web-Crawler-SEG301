@@ -1,0 +1,3 @@
+;/*FB_PKG_DELIM*/
+
+__d("BarcelonaCustomLikeUtils_getCustomLike.threads.graphql",[],(function(t,n,r,o,a,i){"use strict";var e={kind:"InlineDataFragment",name:"BarcelonaCustomLikeUtils_getCustomLike"};a.exports=e}),null);

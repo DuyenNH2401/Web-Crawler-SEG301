@@ -1,0 +1,10 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+data/
+# Legacy output folder created by literal CMD single quotes
+'data/
+.env
+*cookies*.json
+*storage_state*.json
+browser_profile/

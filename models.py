@@ -1,27 +1,20 @@
-"""Common records shared by all news-source crawlers."""
+"""Shared record used to store comments from all social platforms."""
 
 from dataclasses import dataclass
-from typing import List, Optional
 
 
 @dataclass(frozen=True)
-class Article:
-    source: str
-    url: str
-    title: str
-    content: str
-    depth: int
-    status_code: int
-    crawled_at: str
-    summary: str = ""
-    author: Optional[str] = None
-    published_at: Optional[str] = None
-    category: Optional[str] = None
+class Comment:
+    """One reply with UTC timestamps in ISO 8601 format."""
 
-
-@dataclass(frozen=True)
-class Digest:
-    topic: str
-    articles: List[Article]
+    platform: str
+    comment_id: str
     content: str
+    author_id: str
+    author_name: str
+    parent_id: str
+    post_id: str
+    comment_url: str
     created_at: str
+    like_count: int
+    collected_at: str

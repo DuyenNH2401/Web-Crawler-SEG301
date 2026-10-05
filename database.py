@@ -1,163 +1,94 @@
-"""
-Database management module for storing crawled web pages and links using SQLite.
-Task 8: Store Crawled Data in SQLite
-"""
+"""Store social comments from all crawlers in one SQLite table."""
+
 import os
 import sqlite3
-from typing import Dict, List, Any, Optional
+from contextlib import closing
+from typing import Sequence
 
-from models import Digest
+from models import Comment
+
 
 def get_connection(db_path: str) -> sqlite3.Connection:
-    """Create a connection to the SQLite database and ensure directory exists."""
+    """Open a database connection and create its parent directory if needed."""
     os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db(db_path: str) -> None:
-    """Initialize SQLite database tables."""
-    with get_connection(db_path) as conn:
-        cursor = conn.cursor()
-        
-        # Table 1: pages
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS pages (
+
+def init_comments_db(db_path: str) -> None:
+    """Create the comments table and lookup index."""
+    with closing(get_connection(db_path)) as conn, conn:
+        ensure_comments_schema(conn)
+
+
+def ensure_comments_schema(conn: sqlite3.Connection) -> None:
+    """Create the shared schema on an existing connection, including in-memory DBs."""
+    conn.execute("""
+            CREATE TABLE IF NOT EXISTS comments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                url TEXT UNIQUE,
-                domain TEXT,
-                title TEXT,
-                content TEXT,
-                depth INTEGER,
-                status_code INTEGER,
-                crawled_at TEXT
-            );
+                platform TEXT NOT NULL,
+                comment_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                author_id TEXT NOT NULL,
+                author_name TEXT NOT NULL,
+                parent_id TEXT NOT NULL,
+                post_id TEXT NOT NULL,
+                comment_url TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                like_count INTEGER NOT NULL DEFAULT 0 CHECK (like_count >= 0),
+                collected_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+                UNIQUE (platform, comment_id)
+            )
         """)
-        
-        # Table 2: links
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS links (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                source_url TEXT,
-                target_url TEXT
-            );
+    conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_comments_platform_post
+            ON comments (platform, post_id)
         """)
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS digests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                topic TEXT,
-                content TEXT,
-                article_count INTEGER,
-                created_at TEXT
-            );
-        """)
-        conn.commit()
 
-def insert_page(db_path: str, page_data: Dict[str, Any]) -> bool:
-    """
-    Insert a crawled page into the pages table.
-    Returns True if inserted successfully, False if duplicate or failed.
-    """
-    sql = """
-        INSERT OR IGNORE INTO pages (url, domain, title, content, depth, status_code, crawled_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """
-    try:
-        with get_connection(db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(sql, (
-                page_data.get("url"),
-                page_data.get("domain"),
-                page_data.get("title"),
-                page_data.get("content"),
-                page_data.get("depth"),
-                page_data.get("status_code"),
-                page_data.get("crawled_at")
-            ))
-            conn.commit()
-            return cursor.rowcount > 0
-    except sqlite3.Error as e:
-        print(f"[DB Error] Failed to insert page {page_data.get('url')}: {e}")
-        return False
-
-def insert_links(db_path: str, source_url: str, target_urls: List[str]) -> int:
-    """
-    Insert extracted hyperlinks into the links table.
-    Returns the number of links inserted.
-    """
-    if not target_urls:
+def upsert_comments(db_path: str, comments: Sequence[Comment]) -> int:
+    """Insert or refresh comments, keyed by platform and comment ID."""
+    if not comments:
         return 0
-    
-    sql = "INSERT INTO links (source_url, target_url) VALUES (?, ?)"
-    records = [(source_url, target) for target in target_urls]
-    
-    try:
-        with get_connection(db_path) as conn:
-            cursor = conn.cursor()
-            cursor.executemany(sql, records)
-            conn.commit()
-            return len(records)
-    except sqlite3.Error as e:
-        print(f"[DB Error] Failed to insert links for {source_url}: {e}")
-        return 0
-
-def insert_digest(db_path: str, digest: Digest) -> bool:
-    """Store one combined digest from a crawl run."""
+    init_comments_db(db_path)
     sql = """
-        INSERT INTO digests (topic, content, article_count, created_at)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO comments (
+            platform, comment_id, content, author_id, author_name, parent_id,
+            post_id, comment_url, created_at, like_count, collected_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(platform, comment_id) DO UPDATE SET
+            content=excluded.content,
+            author_id=CASE WHEN excluded.author_id = 'UNKNOWN'
+                THEN comments.author_id ELSE excluded.author_id END,
+            author_name=excluded.author_name,
+            parent_id=CASE WHEN excluded.parent_id = 'UNKNOWN'
+                THEN comments.parent_id ELSE excluded.parent_id END,
+            post_id=excluded.post_id,
+            comment_url=excluded.comment_url,
+            created_at=excluded.created_at,
+            like_count=CASE WHEN excluded.parent_id = 'UNKNOWN'
+                THEN comments.like_count ELSE excluded.like_count END,
+            collected_at=excluded.collected_at
     """
-    try:
-        with get_connection(db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(sql, (
-                digest.topic,
-                digest.content,
-                len(digest.articles),
-                digest.created_at,
-            ))
-            conn.commit()
-            return cursor.rowcount > 0
-    except sqlite3.Error as e:
-        print(f"[DB Error] Failed to insert digest: {e}")
-        return False
+    rows = [(
+        c.platform, c.comment_id, c.content, c.author_id, c.author_name,
+        c.parent_id, c.post_id, c.comment_url, c.created_at, c.like_count,
+        c.collected_at,
+    ) for c in comments]
+    with closing(get_connection(db_path)) as conn, conn:
+        conn.executemany(sql, rows)
+    return len(rows)
 
-def get_summary_stats(db_path: str) -> Dict[str, Any]:
-    """Retrieve statistical aggregations from the database for the summary report."""
-    stats: Dict[str, Any] = {
-        "pages_crawled": 0,
-        "unique_links_stored": 0,
-        "depth_counts": {},
-        "status_code_counts": {}
-    }
-    
-    if not os.path.exists(db_path):
-        return stats
-        
-    try:
-        with get_connection(db_path) as conn:
-            cursor = conn.cursor()
-            
-            # Total crawled pages
-            cursor.execute("SELECT COUNT(*) FROM pages")
-            stats["pages_crawled"] = cursor.fetchone()[0]
-            
-            # Unique target URLs in links table
-            cursor.execute("SELECT COUNT(DISTINCT target_url) FROM links")
-            stats["unique_links_stored"] = cursor.fetchone()[0]
-            
-            # Breakdown by depth
-            cursor.execute("SELECT depth, COUNT(*) FROM pages GROUP BY depth ORDER BY depth ASC")
-            for row in cursor.fetchall():
-                stats["depth_counts"][row[0]] = row[1]
-                
-            # Breakdown by status code
-            cursor.execute("SELECT status_code, COUNT(*) FROM pages GROUP BY status_code ORDER BY status_code ASC")
-            for row in cursor.fetchall():
-                stats["status_code_counts"][row[0]] = row[1]
-                
-    except sqlite3.Error as e:
-        print(f"[DB Error] Failed to compute stats: {e}")
-        
-    return stats
+
+def get_comments(db_path: str, platform: str, post_ids: Sequence[str]) -> list[sqlite3.Row]:
+    """Read comments for the requested posts in a stable export order."""
+    if not post_ids or not os.path.exists(db_path):
+        return []
+    placeholders = ",".join("?" for _ in post_ids)
+    with closing(get_connection(db_path)) as conn:
+        return conn.execute(
+            f"SELECT * FROM comments WHERE platform = ? AND post_id IN ({placeholders}) "
+            "ORDER BY created_at, id",
+            [platform, *post_ids],
+        ).fetchall()

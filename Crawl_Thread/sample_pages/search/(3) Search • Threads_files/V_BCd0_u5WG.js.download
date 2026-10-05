@@ -1,0 +1,6 @@
+;/*FB_PKG_DELIM*/
+
+__d("NewsfeedStoryClickFalcoEvent",["FalcoLoggerInternal","getFalcoLogPolicy_DO_NOT_USE"],(function(t,n,r,o,a,i,l){"use strict";var e=r("getFalcoLogPolicy_DO_NOT_USE")("5576"),s=o("FalcoLoggerInternal").create("newsfeed_story_click",e),u=s;l.default=u}),98);
+__d("NewsfeedStoryImpressionFalcoEvent",["FalcoLoggerInternal","getFalcoLogPolicy_DO_NOT_USE"],(function(t,n,r,o,a,i,l){"use strict";var e=r("getFalcoLogPolicy_DO_NOT_USE")("5574"),s=o("FalcoLoggerInternal").create("newsfeed_story_impression",e),u=s;l.default=u}),98);
+__d("ThreadsClientReplyApprovalActionFalcoEvent",["FalcoLoggerInternal","getFalcoLogPolicy_DO_NOT_USE"],(function(t,n,r,o,a,i,l){"use strict";var e=r("getFalcoLogPolicy_DO_NOT_USE")("6886"),s=o("FalcoLoggerInternal").create("threads_client_reply_approval_action",e),u=s;l.default=u}),98);
+__d("ThreadsNewsfeedTabTapFalcoEvent",["FalcoLoggerInternal","getFalcoLogPolicy_DO_NOT_USE"],(function(t,n,r,o,a,i,l){"use strict";var e=r("getFalcoLogPolicy_DO_NOT_USE")("149"),s=o("FalcoLoggerInternal").create("threads_newsfeed_tab_tap",e),u=s;l.default=u}),98);

@@ -21,3 +21,10 @@ Thumbs.db
 
 # Crawler runtime data
 data/
+x_browser_profile/
+*.log
+.secrets/
+.env
+/comments.db
+/tiktok_comments.csv
+/tiktok_profile/
