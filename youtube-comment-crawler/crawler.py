@@ -1,5 +1,5 @@
 import config
-from normalizer import count_words, now, to_record
+from normalizer import compile_keywords, count_words, match_keywords, now, to_record
 from youtube_client import YouTubeClient, YouTubeError
 from youtube_parser import (
     extract_video_id,
@@ -23,6 +23,7 @@ class YouTubeCommentCrawler:
             "comments_saved": 0,
             "replies_saved": 0,
             "skipped_short": 0,
+            "skipped_keyword": 0,
             "duplicates": 0,
         }
 
@@ -33,8 +34,10 @@ class YouTubeCommentCrawler:
         sort=config.DEFAULT_SORT,
         include_replies=config.INCLUDE_REPLIES,
         min_words=config.MIN_WORDS,
+        keywords=None,
     ):
 
+        keyword_patterns = compile_keywords(keywords)
         video_id = extract_video_id(url)
         if not video_id:
             print(f"[SKIP] Khong phai link video YouTube: {url}")
@@ -56,6 +59,10 @@ class YouTubeCommentCrawler:
                     continue
                 if min_words and count_words(record["content"]) < min_words:
                     self.stats["skipped_short"] += 1
+                    continue
+                if keyword_patterns and not match_keywords(record["content"], keyword_patterns):
+                    seen_ids.add(record["comment_id"])
+                    self.stats["skipped_keyword"] += 1
                     continue
                 if max_comments and saved["total"] + len(batch) >= max_comments:
                     break
@@ -114,7 +121,6 @@ class YouTubeCommentCrawler:
         return saved["total"]
 
     def _crawl_replies(self, parent, save):
-        """Lay het reply cua 1 comment goc, ke ca cac trang 'Show more replies'."""
         token = parent["reply_token"]
         seen = set()
         while token and token not in seen:

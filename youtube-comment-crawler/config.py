@@ -3,7 +3,7 @@ from datetime import timedelta, timezone
 
 PLATFORM = "youtube"
 
-REQUEST_TIMEOUT = 20 
+REQUEST_TIMEOUT = 20  
 REQUEST_DELAY = 0.3   
 MAX_RETRIES = 3       
 
@@ -18,9 +18,13 @@ REGION = "VN"
 DEFAULT_SORT = "newest"
 INCLUDE_REPLIES = True
 
-MAX_COMMENTS_PER_VIDEO = 0 # lấy hết cả comment cả reply
+MAX_COMMENTS_PER_VIDEO = 0
 
 MIN_WORDS = 0
+
+
+KEYWORDS = ["bắc", "nam", "bắc kỳ", "nam kỳ", "bucky", "namki", "namkiki", "5kg", "ngoài đấy", "trong đấy", "bắc cụ", "chó nam kì", "chó bắc kì"]
+KEYWORDS_ONLY = True
 
 UNKNOWN = "UNKNOWN"   
 ROOT = "ROOT"         
@@ -42,14 +46,13 @@ EXPORT_COLUMNS = [
     "collected_at",
 ]
 
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "comments.db")
 EXPORT_DIR = os.path.join(DATA_DIR, "exports")
 
 
-def print_configuration(sort, include_replies, max_comments, min_words, db_path=None):
+def print_configuration(sort, include_replies, max_comments, min_words, keywords=None):
     print("=" * 11 + " CRAWLER CONFIGURATION " + "=" * 11)
     print()
     print(f"Platform        : {PLATFORM}")
@@ -57,8 +60,9 @@ def print_configuration(sort, include_replies, max_comments, min_words, db_path=
     print(f"Include Replies : {include_replies}")
     print(f"Max / Video     : {max_comments or 'ALL'}")
     print(f"Min Words       : {min_words}")
+    print(f"Keyword Filter  : {', '.join(keywords) if keywords else 'OFF (luu tat ca)'}")
     print(f"Request Delay   : {REQUEST_DELAY} second(s)")
     print(f"Timezone        : {TIMEZONE.tzname(None)}")
-    print(f"Database        : {db_path or DB_PATH}")
+    print(f"Database        : {DB_PATH}")
     print("=" * 45)
     print()

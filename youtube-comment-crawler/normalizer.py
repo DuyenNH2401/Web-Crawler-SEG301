@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from datetime import datetime, timedelta
 
 import config
@@ -6,7 +7,6 @@ import config
 _UNIT_SECONDS = {
     "second": 1, "minute": 60, "hour": 3600, "day": 86400,
     "week": 7 * 86400, "month": 30 * 86400, "year": 365 * 86400,
-    # tieng Viet (phong khi YouTube tra theo hl=vi)
     "giây": 1, "phút": 60, "giờ": 3600, "ngày": 86400,
     "tuần": 7 * 86400, "tháng": 30 * 86400, "năm": 365 * 86400,
 }
@@ -28,6 +28,7 @@ def parse_relative_time(text, reference):
     amount = int(m.group(1))
     unit = m.group(2).lower()
     return reference - timedelta(seconds=amount * _UNIT_SECONDS[unit])
+
 
 _MULTIPLIER = {"": 1, "k": 1_000, "m": 1_000_000, "b": 1_000_000_000}
 _LIKE_RE = re.compile(r"(\d+(?:[.,]\d+)*)\s*([kmb]?)", re.IGNORECASE)
@@ -52,6 +53,26 @@ _WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
 
 def count_words(text):
     return len(_WORD_RE.findall(text or ""))
+
+
+def _fold(text):
+    return unicodedata.normalize("NFC", text or "").casefold()
+
+
+def compile_keywords(keywords):
+    compiled = []
+    for keyword in keywords or []:
+        words = _fold(keyword).split()
+        if not words:
+            continue
+        body = r"\s+".join(re.escape(word) for word in words)
+        compiled.append((keyword.strip(), re.compile(rf"(?<![^\W_]){body}(?![^\W_])")))
+    return compiled
+
+
+def match_keywords(text, compiled):
+    value = _fold(text)
+    return [keyword for keyword, pattern in compiled if pattern.search(value)]
 
 
 def build_comment_url(video_id, comment_id):

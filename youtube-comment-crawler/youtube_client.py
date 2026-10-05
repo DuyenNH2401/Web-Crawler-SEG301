@@ -26,7 +26,7 @@ class YouTubeClient:
         self.session.cookies.set("SOCS", "CAI", domain=".youtube.com")
         retry = Retry(
             total=config.MAX_RETRIES,
-            backoff_factor=1.5,  # 0s, 1.5s, 3s... giua cac lan thu lai
+            backoff_factor=1.5,  
             status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["GET", "POST"],
         )

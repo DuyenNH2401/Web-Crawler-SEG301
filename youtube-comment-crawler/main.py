@@ -3,6 +3,8 @@
 
     python main.py --url "https://www.youtube.com/watch?v=SGZkBoBsxsk"
 
+    python main.py --input-file urls.txt
+
     python main.py --input-file urls.txt --max-comments 500 --no-replies --export data/exports/youtube.csv
 """
 
@@ -34,6 +36,11 @@ def parse_args():
                    help="Chi lay comment goc, bo reply.")
     p.add_argument("--min-words", type=int, default=config.MIN_WORDS,
                    help="Bo comment it hon N tu (0 = giu tat ca).")
+    p.add_argument("--keywords-only", "-k", action="store_true", default=config.KEYWORDS_ONLY,
+                   help="CHI luu comment chua it nhat 1 tu khoa (mac dinh: config.KEYWORDS).")
+    p.add_argument("--keywords",
+                   help='Danh sach tu khoa, cach nhau dau phay. Vd: "bắc,nam,bắc kỳ". '
+                        "Truyen tham so nay = tu dong bat --keywords-only.")
     p.add_argument("--db", default=config.DB_PATH, help="Duong dan file SQLite.")
     p.add_argument("--export", "-o",
                    help="Sau khi cao, xuat TOAN BO database ra file .csv hoac .jsonl.")
@@ -49,7 +56,6 @@ def read_urls(args):
                 if line and not line.startswith("#"):
                     urls.append(line)
 
-    # Xử lí link duplicate
     unique = {}
     for url in urls:
         key = extract_video_id(url) or url
@@ -79,6 +85,7 @@ def print_summary(stats, db):
     print(f"Comments Saved (root)  : {stats['comments_saved']}")
     print(f"Replies Saved          : {stats['replies_saved']}")
     print(f"Skipped (< min words)  : {stats['skipped_short']}")
+    print(f"Skipped (no keyword)   : {stats['skipped_keyword']}")
     print(f"Duplicates Skipped     : {stats['duplicates']}")
     print()
     print(f"Database Total         : {db_stats['total']} "
@@ -93,12 +100,18 @@ def main():
         print("[!] Chua co link nao. Dung --url hoac --input-file. Xem: python main.py -h")
         sys.exit(1)
 
+    keywords = None
+    if args.keywords:
+        keywords = [k.strip() for k in args.keywords.split(",") if k.strip()]
+    elif args.keywords_only:
+        keywords = list(config.KEYWORDS)
+
     print("=" * 45)
     print("          YOUTUBE COMMENT CRAWLER")
     print("=" * 45)
     print()
     config.print_configuration(args.sort, not args.no_replies, args.max_comments,
-                               args.min_words, args.db)
+                               args.min_words, keywords)
 
     db = Database(args.db)
     crawler = YouTubeCommentCrawler(db)
@@ -111,6 +124,7 @@ def main():
                 sort=args.sort,
                 include_replies=not args.no_replies,
                 min_words=args.min_words,
+                keywords=keywords,
             )
     except KeyboardInterrupt:
         print("\n[!] Da dung (Ctrl+C). Du lieu da cao van nam trong database.")
