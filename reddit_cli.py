@@ -9,7 +9,7 @@ import sys
 from shared_reddit import SharedRedditStore, show, stats
 
 
-REDDIT_DIR = Path(__file__).resolve().parent / "seg301_crawler_reddit2"
+REDDIT_DIR = Path(__file__).resolve().parent / "reddit-crawler"
 
 
 def main(argv: list[str], db_path: str) -> int:

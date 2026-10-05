@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
         from x_crawler.main import main as x_main
         return x_main(argv[1:])
     if len(argv) >= 2 and argv[0] == "youtube" and argv[1] in {"-h", "--help"}:
-        script = Path(__file__).resolve().parent / "youtube-comment-crawler" / "main.py"
+        script = Path(__file__).resolve().parent / "youtube-crawler" / "main.py"
         return subprocess.call([sys.executable, str(script), argv[1]])
     if len(argv) >= 2 and argv[0] == "tiktok" and argv[1] in {"-h", "--help"}:
         from tiktok_crawler.main import main as tiktok_main
@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
         from reddit_cli import main as reddit_main
         return reddit_main(rest, db_path)
     if args.platform == "youtube":
-        script = Path(__file__).resolve().parent / "youtube-comment-crawler" / "main.py"
+        script = Path(__file__).resolve().parent / "youtube-crawler" / "main.py"
         if not script.is_file():
             cli.error(f"Không tìm thấy crawler YouTube: {script}")
         command = [sys.executable, str(script), *rest, "--db", db_path]
