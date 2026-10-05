@@ -25,4 +25,4 @@ Nếu muốn dùng đường dẫn khác:
 python main.py --db data/my_comments.db voz --output data/my_voz.csv
 ```
 
-Đọc [GIAI_THICH_CODE.md](GIAI_THICH_CODE.md) để hiểu từng hàm và luồng dữ liệu. Crawler chỉ đọc HTML công khai; nếu VOZ đổi giao diện hoặc giới hạn truy cập, các bộ chọn HTML có thể cần cập nhật.
+Đọc [GIAI_THICH_CODE.md](GIAI_THICH_CODE.md) để hiểu vai trò từng file và luồng dữ liệu. Crawler chỉ đọc HTML công khai; nếu VOZ đổi giao diện hoặc giới hạn truy cập, các bộ chọn trong `parser.py` có thể cần cập nhật.
