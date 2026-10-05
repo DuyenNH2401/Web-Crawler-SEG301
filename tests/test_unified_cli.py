@@ -4,30 +4,35 @@ import json
 from contextlib import closing
 from pathlib import Path
 import sqlite3
+import sys
 import tempfile
 import unittest
 from unittest.mock import AsyncMock, patch
 
 import main
+from reddit_cli import REDDIT_DIR
 from shared_database import import_threads_dataset
 from tiktok_crawler.comments_db import save_comments
 
 
 class UnifiedCliTests(unittest.TestCase):
-    def test_reddit_import_and_dry_run_share_requested_database(self):
+    def test_reddit_crawl_and_dry_run_share_requested_database(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             target = root / "comments.db"
-            source = root / "reddit.jsonl"
-            source.write_text(json.dumps({"id": "abc123", "post_id": "t3_post123",
-                                          "parent_id": "t3_post123", "subreddit": "python",
-                                          "body": "hello", "score": -2,
-                                          "created_utc": 1728000000}) + "\n", encoding="utf-8")
-            args = ["--db", str(target), "reddit", "import", "--subreddit", "python",
-                    "--max-comments", "1", "--input", str(source)]
-            self.assertEqual(main.main([*args, "--dry-run"]), 0)
-            self.assertFalse(target.exists())
-            self.assertEqual(main.main(args), 0)
+            cookie = root / "cookie.txt"
+            cookie.write_text("session=test", encoding="utf-8")
+            args = ["--db", str(target), "reddit", "crawl", "--cookies-file", str(cookie),
+                    "--subreddit", "python", "--max-comments", "1"]
+            comments = [dict(id="abc123", post_id="t3_post123",
+                             parent_id="t3_post123", subreddit="python",
+                             body="hello", score=-2, created_utc=1728000000)]
+            with patch.object(sys, "path", [str(REDDIT_DIR), *sys.path]), patch(
+                "reddit_app.client.RedditClient.new_posts", return_value=["post123"]
+            ), patch("reddit_app.client.RedditClient.comments", return_value=(comments, 0)):
+                self.assertEqual(main.main([*args, "--dry-run"]), 0)
+                self.assertFalse(target.exists())
+                self.assertEqual(main.main(args), 0)
             with closing(sqlite3.connect(target)) as conn:
                 rows = conn.execute("SELECT platform, comment_id, like_count FROM comments").fetchall()
             self.assertEqual(rows, [("reddit", "abc123", 0)])

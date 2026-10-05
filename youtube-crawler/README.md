@@ -116,7 +116,7 @@ POST /youtubei/v1/next {continuation: token Newest}
 ## 6. Cau truc thu muc
 
 ```
-youtube-comment-crawler/
+youtube-crawler/
 ├── main.py              # CLI: doc link, cao, in thong ke, export
 ├── config.py            # moi tham so (delay, sort, mui gio, quy uoc UNKNOWN/ROOT...)
 ├── youtube_client.py    # goi mang: GET /watch, POST /youtubei/v1/next, retry

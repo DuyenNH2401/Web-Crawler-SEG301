@@ -14,8 +14,8 @@ from shared_reddit import utc_text
 ROOT = Path(__file__).resolve().parent
 DEFAULT_DB = ROOT / "data" / "comments.db"
 SOURCES = (
-    ("reddit", ROOT / "seg301_crawler_reddit" / "data" / "reddit.sqlite3"),
-    ("youtube", ROOT / "youtube-comment-crawler" / "data" / "comments.db"),
+    ("reddit", ROOT / "reddit-crawler" / "data" / "reddit.sqlite3"),
+    ("youtube", ROOT / "youtube-crawler" / "data" / "comments.db"),
 )
 TIKTOK_SOURCE = ROOT / "comments.db"
 THREADS_DIR = ROOT / "Crawl_Thread" / "data"
