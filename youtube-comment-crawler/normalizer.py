@@ -70,6 +70,10 @@ def compile_keywords(keywords):
     return compiled
 
 
+def content_key(text):
+    return " ".join(_fold(text).split())
+
+
 def match_keywords(text, compiled):
     value = _fold(text)
     return [keyword for keyword, pattern in compiled if pattern.search(value)]

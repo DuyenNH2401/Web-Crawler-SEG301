@@ -1,5 +1,5 @@
 import config
-from normalizer import compile_keywords, count_words, match_keywords, now, to_record
+from normalizer import compile_keywords, content_key, count_words, match_keywords, now, to_record
 from youtube_client import YouTubeClient, YouTubeError
 from youtube_parser import (
     extract_video_id,
@@ -25,6 +25,8 @@ class YouTubeCommentCrawler:
             "skipped_short": 0,
             "skipped_keyword": 0,
             "duplicates": 0,
+            "duplicate_content": 0,
+            "already_in_db": 0,
         }
 
     def crawl_video(
@@ -35,6 +37,7 @@ class YouTubeCommentCrawler:
         include_replies=config.INCLUDE_REPLIES,
         min_words=config.MIN_WORDS,
         keywords=None,
+        dedup_content=config.DEDUP_CONTENT,
     ):
 
         keyword_patterns = compile_keywords(keywords)
@@ -48,6 +51,19 @@ class YouTubeCommentCrawler:
         seen_ids = set()
         saved = {"total": 0}
 
+        existing_ids = {cid for cid, _, _ in self.db.get_post_comments(video_id)}
+
+        def make_content_key(author_id, content):
+            author = author_id if dedup_content == "author" else ""
+            return (author, content_key(content))
+
+        content_owner = {}
+        if dedup_content in ("author", "all", "global"):
+            rows = (self.db.get_all_comments() if dedup_content == "global"
+                    else self.db.get_post_comments(video_id))
+            for cid, author_id, content in rows:
+                content_owner.setdefault(make_content_key(author_id, content), cid)
+
         def save(raw_list, parent_id):
             batch = []
             for raw in raw_list:
@@ -57,6 +73,10 @@ class YouTubeCommentCrawler:
                 if record["comment_id"] in seen_ids:
                     self.stats["duplicates"] += 1
                     continue
+                if record["comment_id"] in existing_ids:
+                    seen_ids.add(record["comment_id"])
+                    self.stats["already_in_db"] += 1
+                    continue
                 if min_words and count_words(record["content"]) < min_words:
                     self.stats["skipped_short"] += 1
                     continue
@@ -64,15 +84,24 @@ class YouTubeCommentCrawler:
                     seen_ids.add(record["comment_id"])
                     self.stats["skipped_keyword"] += 1
                     continue
+                if dedup_content in ("author", "all", "global"):
+                    key = make_content_key(record["author_id"], record["content"])
+                    owner = content_owner.get(key)
+                    if owner is not None and owner != record["comment_id"]:
+                        seen_ids.add(record["comment_id"])
+                        self.stats["duplicate_content"] += 1
+                        continue
+                    content_owner[key] = record["comment_id"]
                 if max_comments and saved["total"] + len(batch) >= max_comments:
                     break
                 seen_ids.add(record["comment_id"])
                 batch.append(record)
             if batch:
-                self.db.upsert_comments(batch)
-                saved["total"] += len(batch)
+                inserted = self.db.insert_comments(batch)
+                saved["total"] += inserted
                 key = "comments_saved" if parent_id is None else "replies_saved"
-                self.stats[key] += len(batch)
+                self.stats[key] += inserted
+                self.stats["already_in_db"] += len(batch) - inserted
             if max_comments and saved["total"] >= max_comments:
                 raise _LimitReached()
 

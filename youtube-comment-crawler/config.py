@@ -26,6 +26,8 @@ MIN_WORDS = 0
 KEYWORDS = ["bắc", "nam", "bắc kỳ", "nam kỳ", "bucky", "namki", "namkiki", "5kg", "ngoài đấy", "trong đấy", "bắc cụ", "chó nam kì", "chó bắc kì"]
 KEYWORDS_ONLY = True
 
+DEDUP_CONTENT = "global"
+
 UNKNOWN = "UNKNOWN"   
 ROOT = "ROOT"         
 
@@ -52,7 +54,8 @@ DB_PATH = os.path.join(DATA_DIR, "comments.db")
 EXPORT_DIR = os.path.join(DATA_DIR, "exports")
 
 
-def print_configuration(sort, include_replies, max_comments, min_words, keywords=None):
+def print_configuration(sort, include_replies, max_comments, min_words, keywords=None,
+                        dedup_content=DEDUP_CONTENT):
     print("=" * 11 + " CRAWLER CONFIGURATION " + "=" * 11)
     print()
     print(f"Platform        : {PLATFORM}")
@@ -61,6 +64,7 @@ def print_configuration(sort, include_replies, max_comments, min_words, keywords
     print(f"Max / Video     : {max_comments or 'ALL'}")
     print(f"Min Words       : {min_words}")
     print(f"Keyword Filter  : {', '.join(keywords) if keywords else 'OFF (luu tat ca)'}")
+    print(f"Dedup Content   : {dedup_content}")
     print(f"Request Delay   : {REQUEST_DELAY} second(s)")
     print(f"Timezone        : {TIMEZONE.tzname(None)}")
     print(f"Database        : {DB_PATH}")

@@ -59,6 +59,30 @@ class Database:
         with self.conn:  
             self.conn.executemany(sql, [tuple(r[c] for c in columns) for r in records])
 
+    def insert_comments(self, records):
+        columns = config.EXPORT_COLUMNS
+        sql = f"""
+            INSERT INTO comments ({", ".join(columns)})
+            VALUES ({", ".join("?" for _ in columns)})
+            ON CONFLICT(platform, comment_id) DO NOTHING
+        """
+        before = self.conn.total_changes
+        with self.conn:
+            self.conn.executemany(sql, [tuple(r[c] for c in columns) for r in records])
+        return self.conn.total_changes - before
+
+    def get_post_comments(self, post_id, platform=None):
+        return self.conn.execute(
+            "SELECT comment_id, author_id, content FROM comments "
+            "WHERE platform = ? AND post_id = ? ORDER BY id",
+            (platform or config.PLATFORM, post_id),
+        ).fetchall()
+
+    def get_all_comments(self):
+        return self.conn.execute(
+            "SELECT comment_id, author_id, content FROM comments ORDER BY id"
+        ).fetchall()
+
     def get_stats(self):
         cur = self.conn.cursor()
         total = cur.execute("SELECT COUNT(*) FROM comments").fetchone()[0]

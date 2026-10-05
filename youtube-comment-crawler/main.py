@@ -41,6 +41,9 @@ def parse_args():
     p.add_argument("--keywords",
                    help='Danh sach tu khoa, cach nhau dau phay. Vd: "bắc,nam,bắc kỳ". '
                         "Truyen tham so nay = tu dong bat --keywords-only.")
+    p.add_argument("--dedup-content", choices=["off", "author", "all", "global"], default=config.DEDUP_CONTENT,
+                   help="Bo comment trung noi dung: off = giu het, author = cung nguoi + cung noi dung "
+                        "(1 video), all = cung noi dung (1 video), global = cung noi dung (toan DB).")
     p.add_argument("--db", default=config.DB_PATH, help="Duong dan file SQLite.")
     p.add_argument("--export", "-o",
                    help="Sau khi cao, xuat TOAN BO database ra file .csv hoac .jsonl.")
@@ -87,6 +90,8 @@ def print_summary(stats, db):
     print(f"Skipped (< min words)  : {stats['skipped_short']}")
     print(f"Skipped (no keyword)   : {stats['skipped_keyword']}")
     print(f"Duplicates Skipped     : {stats['duplicates']}")
+    print(f"Duplicate Content      : {stats['duplicate_content']}")
+    print(f"Already in DB          : {stats['already_in_db']}")
     print()
     print(f"Database Total         : {db_stats['total']} "
           f"({db_stats['roots']} goc / {db_stats['replies']} reply)")
@@ -111,7 +116,7 @@ def main():
     print("=" * 45)
     print()
     config.print_configuration(args.sort, not args.no_replies, args.max_comments,
-                               args.min_words, keywords)
+                               args.min_words, keywords, args.dedup_content)
 
     db = Database(args.db)
     crawler = YouTubeCommentCrawler(db)
@@ -125,6 +130,7 @@ def main():
                 include_replies=not args.no_replies,
                 min_words=args.min_words,
                 keywords=keywords,
+                dedup_content=args.dedup_content,
             )
     except KeyboardInterrupt:
         print("\n[!] Da dung (Ctrl+C). Du lieu da cao van nam trong database.")
