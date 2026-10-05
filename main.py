@@ -19,13 +19,12 @@ def main(argv: list[str] | None = None) -> int:
         # Preserve the previous X-only command line for existing scripts.
         from x_crawler.main import main as x_main
         return x_main(argv)
-    if len(argv) >= 2 and argv[0] in {"x", "reddit"} and argv[1] in {"-h", "--help"}:
-        if argv[0] == "x":
-            from x_crawler.main import main as x_main
-            return x_main(argv[1:])
-        if argv[0] == "reddit":
-            from reddit_cli import main as reddit_main
-            return reddit_main(argv[1:], str(DEFAULT_DB))
+    if argv and argv[0] == "reddit" and any(arg in {"-h", "--help"} for arg in argv[1:]):
+        from reddit_cli import main as reddit_main
+        return reddit_main(argv[1:], str(DEFAULT_DB))
+    if len(argv) >= 2 and argv[0] == "x" and argv[1] in {"-h", "--help"}:
+        from x_crawler.main import main as x_main
+        return x_main(argv[1:])
     if len(argv) >= 2 and argv[0] == "youtube" and argv[1] in {"-h", "--help"}:
         script = Path(__file__).resolve().parent / "youtube-comment-crawler" / "main.py"
         return subprocess.call([sys.executable, str(script), argv[1]])

@@ -1,10 +1,10 @@
 # Cào bình luận X, Reddit, YouTube, TikTok và Threads
 
-Dự án có năm crawler trong `x_crawler/`, `seg301_crawler_reddit/`, `youtube-comment-crawler/`, `tiktok_crawler/` và `Crawl_Thread/`. Chạy từ thư mục gốc qua `main.py`; bình luận của cả năm được lưu trong **một bảng `comments`** ở `data/comments.db`, với khóa duy nhất `(platform, comment_id)`. Chạy `python main.py migrate` để nhập thêm dữ liệu từ các database cũ mà không tạo bản sao bình luận.
+Dự án có năm crawler trong `x_crawler/`, `seg301_crawler_reddit2/`, `youtube-comment-crawler/`, `tiktok_crawler/` và `Crawl_Thread/`. Chạy từ thư mục gốc qua `main.py`; bình luận của cả năm được lưu trong **một bảng `comments`** ở `data/comments.db`, với khóa duy nhất `(platform, comment_id)`. Chạy `python main.py migrate` để nhập thêm dữ liệu từ các database cũ mà không tạo bản sao bình luận.
 
 ```powershell
 python main.py x --post "https://x.com/username/status/1234567890123456789"
-python main.py reddit crawl-public --subreddit python --max-comments 100 --max-posts 10
+python main.py reddit crawl --cookies-file seg301_crawler_reddit2/.secrets/reddit-cookie.txt --subreddit python --max-comments 100 --max-posts 10
 python main.py youtube --url "https://www.youtube.com/watch?v=VIDEO_ID" --max-comments 100
 python main.py tiktok "https://www.tiktok.com/@username/video/VIDEO_ID" --max 100 --replies --channel chrome
 python main.py threads crawl --url "https://www.threads.com/@username/post/POST_ID" --max-pages 20 --headed
@@ -13,7 +13,7 @@ python main.py reddit stats
 
 Thêm `--db D:\duong-dan\comments.db` ngay sau `main.py` để dùng file SQLite khác. Xem tham số qua `python main.py x -h`, `reddit -h`, `youtube -h`, `tiktok -h`, `threads -h` (đều đặt sau `main.py`). Lệnh X cũ `python main.py --post ...` vẫn chạy.
 
-`purge` của Reddit chỉ xóa bản ghi Reddit. Threads vẫn dùng `Crawl_Thread/data/.../dataset.sqlite3` để lưu tiến độ, trang HTML và quan hệ giữa bình luận với bài viết; sau mỗi lệnh Threads chạy qua `main.py` gốc, bình luận được đồng bộ vào database chung. Khi một bình luận Threads xuất hiện trong nhiều bài, bảng `threads_comment_context` trong database chung giữ toàn bộ các quan hệ đó. Database cũ của TikTok và Threads được giữ nguyên để đối chiếu.
+Reddit dùng cookie lưu riêng trong `seg301_crawler_reddit2/.secrets/` (xem hướng dẫn trong thư mục crawler). Threads vẫn dùng `Crawl_Thread/data/.../dataset.sqlite3` để lưu tiến độ, trang HTML và quan hệ giữa bình luận với bài viết; sau mỗi lệnh Threads chạy qua `main.py` gốc, bình luận được đồng bộ vào database chung. Khi một bình luận Threads xuất hiện trong nhiều bài, bảng `threads_comment_context` trong database chung giữ toàn bộ các quan hệ đó. Database cũ của TikTok và Threads được giữ nguyên để đối chiếu.
 
 ## Cài đặt
 

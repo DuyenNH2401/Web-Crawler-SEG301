@@ -56,20 +56,21 @@ class SharedRedditStore:
                 "DELETE FROM comments WHERE platform='reddit' AND comment_id=?", (cid,)).rowcount
 
     def save(self, value, *, now: float | None = None) -> str:
-        from reddit_app.config import DELETED
-        from reddit_app.models import Comment
+        from reddit_app.parser import DELETED, normalize_comment
 
-        c = Comment.from_value(value)
-        if c.body in DELETED:
-            return "deleted" if self.delete(c.id) else "skipped"
+        c = normalize_comment(value)
+        if not c["comment_id"]:
+            raise ValueError("Comment Reddit thiếu ID")
+        if c["content"] in DELETED:
+            return "deleted" if self.delete(c["comment_id"]) else "skipped"
         exists = self.conn.execute(
-            "SELECT 1 FROM comments WHERE platform='reddit' AND comment_id=?", (c.id,)).fetchone()
+            "SELECT 1 FROM comments WHERE platform='reddit' AND comment_id=?", (c["comment_id"],)).fetchone()
         record = SharedComment(
-            platform="reddit", comment_id=c.id, content=c.body or "",
-            author_id=c.author_id or "UNKNOWN", author_name=c.author_name or "UNKNOWN",
-            parent_id=c.parent_id or "UNKNOWN", post_id=c.post_id or "UNKNOWN",
-            comment_url=c.comment_url or "", created_at=utc_text(c.created_utc),
-            like_count=max(0, c.score or 0), collected_at=utc_text(now or time.time()),
+            platform="reddit", comment_id=c["comment_id"], content=c["content"] or "",
+            author_id=c["author_id"] or "UNKNOWN", author_name=c["author_name"] or "UNKNOWN",
+            parent_id=c["parent_id"] or "UNKNOWN", post_id=c["post_id"] or "UNKNOWN",
+            comment_url=c["comment_url"] or "", created_at=utc_text(c["created_at"]),
+            like_count=max(0, c["like_count"] or 0), collected_at=utc_text(now or time.time()),
         )
         with self.conn:
             self.conn.execute("""INSERT INTO comments
@@ -81,14 +82,14 @@ class SharedRedditStore:
                     author_name=excluded.author_name, parent_id=excluded.parent_id,
                     post_id=excluded.post_id, comment_url=excluded.comment_url,
                     created_at=excluded.created_at, like_count=excluded.like_count,
-                    collected_at=excluded.collected_at""",
+                    collected_at=comments.collected_at""",
                 (record.platform, record.comment_id, record.content, record.author_id,
                  record.author_name, record.parent_id, record.post_id, record.comment_url,
                  record.created_at, record.like_count, record.collected_at))
             self.conn.execute("""INSERT INTO comment_metadata(platform, comment_id, subreddit)
                 VALUES ('reddit', ?, ?)
                 ON CONFLICT(platform, comment_id) DO UPDATE SET subreddit=excluded.subreddit""",
-                (c.id, c.subreddit.lower() if c.subreddit else None))
+                (c["comment_id"], c["subreddit"]))
         return "updated" if exists else "created"
 
     def purge(self, *, now: float | None = None, retention_hours: float = 48) -> int:
