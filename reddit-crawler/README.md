@@ -51,6 +51,7 @@ Database mặc định là `data/reddit.sqlite3`; dùng `--db` để chọn file
 | `--timeout` | Timeout thao tác socket, mặc định 30 giây |
 | `--user-agent` | Mô tả crawler; có thể thêm tên tài khoản liên hệ |
 | `--db` | File SQLite, mặc định `data/reddit.sqlite3` |
+| `--mode` | Chế độ cào: `json` (mặc định, nhanh và đầy đủ) hoặc `html` (bóc tách bằng BeautifulSoup) |
 | `--dry-run` | Đọc Reddit và đếm dự kiến, không tạo hoặc sửa database |
 
 Thử kết nối với một bài trước khi lưu:

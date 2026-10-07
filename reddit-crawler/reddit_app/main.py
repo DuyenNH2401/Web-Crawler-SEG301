@@ -25,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     crawl_p.add_argument("--timeout", type=float, default=30.0, help="Timeout socket (giây)")
     crawl_p.add_argument("--user-agent", default=USER_AGENT, help="User-Agent gửi tới Reddit")
     crawl_p.add_argument("--db", type=Path, default=DEFAULT_DB, help="File database SQLite")
+    crawl_p.add_argument("--mode", choices=["json", "html"], default="json", help="Chế độ cào: json (mặc định) hoặc html")
     crawl_p.add_argument("--dry-run", action="store_true", help="Chạy thử không ghi database")
 
     show_p = subparsers.add_parser("show", help="Xem nội dung comment đã lưu")
@@ -52,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
             db_path = ":memory:" if args.dry_run else args.db
             with Store(db_path) as store:
                 res = crawl(client, store, args.subreddit, max_comments=args.max_comments,
-                            max_posts=args.max_posts, dry_run=args.dry_run)
+                            max_posts=args.max_posts, dry_run=args.dry_run, mode=args.mode)
                 res["dry_run"] = args.dry_run
                 print(json.dumps(res, ensure_ascii=False))
                 return 0
