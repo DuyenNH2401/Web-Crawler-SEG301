@@ -4,7 +4,7 @@ from urllib.parse import urlsplit, urlunsplit
 import re
 from datetime import datetime
 import hashlib
-from db import init_db, save_comments
+from .db import init_db, save_comments
 
 DB_PATH = "comments.db"
 SEED_URL = "https://voz.vn/search/search?"
